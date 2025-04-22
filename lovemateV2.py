@@ -10,6 +10,7 @@ from PIL import Image
 import base64
 import html
 import numpy as np
+import json
 
 def image_to_base64(img):
     buffered = io.BytesIO()
@@ -22,7 +23,8 @@ def image_to_base64(img):
 # ---------------------------
 def load_sheet(sheet_name):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("lovemateV2.json", scope)
+    key_dict = st.secrets["google_service_account"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(dict(key_dict), scope)
     client = gspread.authorize(creds)
     sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1jnZqqmZB8zWau6CHqxm-L9fxlXDaWxOaJm6uDcE6WN0/edit")
     worksheet = sheet.worksheet(sheet_name)
@@ -34,7 +36,8 @@ def load_sheet(sheet_name):
 
 def get_drive_service():
     scope = ['https://www.googleapis.com/auth/drive.readonly']
-    creds = ServiceAccountCredentials.from_json_keyfile_name("lovemateV2.json", scope)
+    key_dict = st.secrets["google_service_account"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(dict(key_dict), scope)
     return build('drive', 'v3', credentials=creds)
 
 def get_drive_image(file_id):
