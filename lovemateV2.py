@@ -358,7 +358,8 @@ def extract_drive_file_id(url):
 
 def upload_file_to_drive(file_path, filename, folder_id):
     scopes = ['https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name("your_service_account.json", scopes)
+    key_dict = load_google_service_account_key()
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, scopes)
     service = build('drive', 'v3', credentials=creds)
 
     # 🔍 Step 1: 기존 동일 파일명 검색
