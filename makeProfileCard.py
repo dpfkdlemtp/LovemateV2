@@ -206,4 +206,8 @@ def create_pdf_from_data(data: dict, output_path: str = None) -> str:
     image_paths = data.get("photo_paths", [])
     draw_photos_page(c, image_paths)
     c.save()
+    # 이미지 임시 파일 삭제
+    for img_path in image_paths:
+        if img_path.startswith("/tmp") and os.path.exists(img_path):
+            os.remove(img_path)
     return output_path
