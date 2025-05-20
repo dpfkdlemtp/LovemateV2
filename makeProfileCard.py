@@ -6,6 +6,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.lib.utils import ImageReader
 from PIL import Image, ImageOps
 import os
+import re
 
 # ✅ 폰트 등록 (배포 환경에 맞게 상대 경로 사용)
 pdfmetrics.registerFont(TTFont('PreLight', 'fonts/Pretendard-Light.ttf'))
@@ -13,6 +14,10 @@ pdfmetrics.registerFont(TTFont('PreRegular', 'fonts/Pretendard-Regular.ttf'))
 pdfmetrics.registerFont(TTFont('PreMedium', 'fonts/Pretendard-Medium.ttf'))
 pdfmetrics.registerFont(TTFont('PreSemiBold', 'fonts/Pretendard-SemiBold.ttf'))
 
+def remove_emojis(text):
+    if not isinstance(text, str):
+        return text
+    return re.sub(r'[\U00010000-\U0010ffff]+', '', text)
 
 def auto_rotate_image(image_path):
     try:
@@ -142,10 +147,10 @@ def create_pdf_from_data(data: dict, output_path: str = None) -> str:
             c.drawString(text_x, y_start - 5 - (i + 1) * line_spacing, line.strip())
 
     sections = [
-        ("저를 소개합니다.", data.get("info_text", "")),
-        ("저의 매력포인트는..", data.get("attract_text", "")),
-        ("제 취미는요.", data.get("hobby_text", "")),
-        ("저의 연애스타일은..", data.get("dating_text", "")),
+        ("저를 소개합니다", remove_emojis(data.get("info_text", ""))),
+        ("저의 매력포인트는", remove_emojis(data.get("attract_text", ""))),
+        ("제 취미는요", remove_emojis(data.get("hobby_text", ""))),
+        ("저의 연애스타일은", remove_emojis(data.get("dating_text", ""))),
     ]
     section_y_positions = [height - 350, height - 490, height - 590, height - 700]
     for (title, content), y in zip(sections, section_y_positions):
