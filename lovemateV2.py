@@ -21,11 +21,13 @@ import streamlit as st
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from datetime import datetime
 from PIL import Image
 import requests
 from makeProfileCard import create_pdf_from_data
 import tempfile
+from datetime import datetime
+import inspect
+
 
 
 st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
@@ -109,9 +111,32 @@ def connect_sheet(sheet_name):
 
     except Exception as e:
         st.error(f"❌ [{sheet_name}] 시트 연결 중 오류 발생: {e}")
+        write_log("",f"❌ [{sheet_name}] 시트 연결 중 오류 발생: {e}")
         df = pd.DataFrame()  # 비어있는 DataFrame 리턴 (에러 방지)
 
     return df, worksheet
+
+import inspect
+
+def write_log(member_id: str = "", message: str = ""):
+    try:
+        # ✅ LoginID: 로그인된 세션에서 가져오되 없으면 "AppsScript"
+        login_id = st.session_state.get("user_id", "AppsScript")
+
+        # ✅ Action: 호출한 함수명 자동 감지
+        frame = inspect.currentframe()
+        outer_frame = inspect.getouterframes(frame)[1]
+        action = outer_frame.function
+
+        # ✅ Timestamp
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # ✅ Google Sheet에 기록
+        _, ws = connect_sheet("로그")
+        row = [now, login_id, member_id, action, message]
+        ws.append_row(row)
+    except Exception as e:
+        print(f"[로그 기록 실패] {e}")
 
 def signup(new_id, new_pw):
     df_accounts, ws_accounts = connect_sheet("계정정보")
@@ -168,6 +193,7 @@ def login(user_id, user_pw):
                     ws_log.append_row(new_log_row)
                 except Exception as e:
                     st.error(f"로그인 기록 저장 실패: {e}")
+                    write_log("",f"로그인 기록 저장 실패: {e}")
 
                 return True
             else:
@@ -264,6 +290,7 @@ def copy_drive_permissions(source_file_id, target_file_id):
                     supportsAllDrives=True
                 ).execute()
             except Exception:
+                write_log("","드라이브 권한 복사 오류")
                 pass
 
 
@@ -396,8 +423,82 @@ def upload_file_to_drive(file_path, filename, folder_id):
         ).execute()
         return uploaded['id']
 
+def generate_profile_card_from_sheet(member_id: str):
+    member_df = load_sheet("회원")
+    profile_df = load_sheet("프로필")
+
+
+    write_log(member_id,f"[디버그] 시트 로딩 완료: 회원 {len(member_df)}명, 프로필 {len(profile_df)}명")
+
+    member_data = member_df[member_df["회원 ID"] == member_id]
+    profile_data = profile_df[profile_df["회원 ID"] == member_id]
+
+    if member_data.empty or profile_data.empty:
+        write_log(member_id,f"[❌에러] {member_id}에 해당하는 정보가 시트에 없습니다.")
+        raise ValueError(f"{member_id}에 해당하는 회원 정보 또는 프로필 정보가 없습니다.")
+
+    m = member_data.iloc[0].to_dict()
+    p = profile_data.iloc[0].to_dict()
+
+    # 사진 다운로드 또는 경로 설정 (Streamlit 서버에 미리 저장된 경로로 매핑하거나 다운로드 구현 필요)
+    # 임시방식: 사진1~4는 temp에 다운로드했다고 가정
+    photo_urls = str(p.get("본인 사진", "")).split(",")[:4]
+    photo_paths = []
+
+    write_log(member_id,f"[디버그] 📸 사진 링크 수집됨: {photo_urls}")
+
+    for i, url in enumerate(photo_urls):
+        try:
+            file_id = extract_drive_file_id(url.strip())
+            image = get_drive_image(file_id)
+            temp_img = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+            image.save(temp_img.name)
+            photo_paths.append(temp_img.name)
+            write_log(member_id,f"[디버그] ✅ 이미지 {i + 1} 저장: {temp_img.name}")
+        except Exception as e:
+            write_log(member_id,f"[⚠️사진 에러] {url} 처리 실패: {e}")
+            continue
+
+    data = {
+        "member_code": member_id,
+        "age": m.get("본인(나이)", ""),
+        "height": m.get("본인(키)", ""),
+        "region": m.get("본인(거주지 - 시구)", ""),
+        "smoking": m.get("본인(흡연)", ""),
+        "drink": m.get("본인(음주)", ""),
+        "edu": m.get("본인(학력)", ""),
+        "company": m.get("본인(회사 규모)", ""),
+        "work": m.get("본인(근무 형태)", ""),
+        "religion": m.get("본인(종교)", ""),
+        "mbti": p.get("MBTI", ""),
+        "job": m.get("본인(직무)", ""),
+        "salary": m.get("본인(연봉)", ""),
+        "car": m.get("본인(자차)", ""),
+        "house": m.get("본인(자가)", ""),
+        "info_text": p.get("소개", ""),
+        "attract_text": p.get("매력", ""),
+        "hobby_text": p.get("취미", ""),
+        "dating_text": p.get("연애스타일", ""),
+        "photo_paths": photo_paths,
+    }
+
+    write_log(member_id, f"[디버그] 🧾 PDF 생성 시작")
+    output_path = create_pdf_from_data(data)
+    write_log(member_id, f"[디버그] 📄 PDF 생성 완료: {output_path}")
+
+    write_log(member_id, f"[디버그] ☁️ Drive 업로드 시작")
+    uploaded_id = upload_file_to_drive(
+        output_path,
+        f"{member_id}_프로필카드.pdf",
+        folder_id="104l4k5PPO25thz919Gi4241_IQ_MSsfe"
+    )
+
+    write_log(member_id, f"[디버그] ✅ 업로드 완료: 파일 ID {uploaded_id}")
+    return uploaded_id
+
 #프로필카드 트리거
-if st.query_params.get("trigger") == ["generate_card"]:
+if st.query_params.get("trigger") == "generate_card":
+    write_log("",f"<script>console.log('query_params: {st.query_params}');</script>", unsafe_allow_html=True)
     member_id = st.query_params.get("member_id", [""])[0]
     if member_id:
         with st.spinner(f"{member_id}의 프로필카드를 생성 중..."):
@@ -406,6 +507,7 @@ if st.query_params.get("trigger") == ["generate_card"]:
                 st.success(f"✅ 프로필카드 생성 완료 (Drive ID: {uploaded_id})")
             except Exception as e:
                 st.error(f"❌ 오류 발생: {e}")
+                write_log("","프로필카드 생성 오류")
     else:
         st.error("❌ member_id 파라미터가 없습니다.")
     st.stop()
@@ -461,6 +563,7 @@ def match_members(df, match_data):
             filtered = filtered[filtered["본인(키)"].between(min_h, max_h)]
             print(f"키 필터링 후 인원: {filtered}")
     except:
+        write_log(match_data["memberId"],"키 필터 오류")
         pass
 
     try:
@@ -470,6 +573,7 @@ def match_members(df, match_data):
             print(f"나이 필터링 후 인원: {filtered}")
     except Exception as e:
         print(f"[나이 필터 에러] {e}")
+        write_log(match_data["memberId"],"나이 필터 오류")
 
     condition_fields = [
         "이상형(사는 곳)", "이상형(학력)", "이상형(흡연)", "이상형(종교)",
@@ -497,6 +601,7 @@ def match_members(df, match_data):
             filtered = filtered[filtered["설문 날짜"] >= after_date]
             print(f"날짜 필터링 후 인원: {filtered}")
         except:
+            write_log(match_data["memberId"],"날짜 필터링 오류")
             pass
 
     sent_ids = str(target.get("받은 프로필 목록", "")).split(",") if pd.notna(target.get("받은 프로필 목록")) else []
@@ -664,6 +769,7 @@ def run_multi_matching():
 
             except Exception as inner_e:
                 print(f"❌ Row {base_row} 처리 중 오류: {inner_e}")
+                write_log(match_data["memberId"],f"❌ Row {base_row} 처리 중 오류: {inner_e}")
 
         print("🎉 모든 8명 추출 완료!")
 
@@ -671,85 +777,11 @@ def run_multi_matching():
         print(f"❌ 전체 처리 실패: {e}")
 
 
-def generate_profile_card_from_sheet(member_id: str):
-    member_df = load_sheet("회원")
-    profile_df = load_sheet("프로필")
-
-
-    js_console_log(f"[디버그] 시트 로딩 완료: 회원 {len(member_df)}명, 프로필 {len(profile_df)}명")
-
-    member_data = member_df[member_df["회원 ID"] == member_id]
-    profile_data = profile_df[profile_df["회원 ID"] == member_id]
-
-    if member_data.empty or profile_data.empty:
-        js_console_log(f"[❌에러] {member_id}에 해당하는 정보가 시트에 없습니다.")
-        raise ValueError(f"{member_id}에 해당하는 회원 정보 또는 프로필 정보가 없습니다.")
-
-    m = member_data.iloc[0].to_dict()
-    p = profile_data.iloc[0].to_dict()
-
-    # 사진 다운로드 또는 경로 설정 (Streamlit 서버에 미리 저장된 경로로 매핑하거나 다운로드 구현 필요)
-    # 임시방식: 사진1~4는 temp에 다운로드했다고 가정
-    photo_urls = str(p.get("본인 사진", "")).split(",")[:4]
-    photo_paths = []
-
-    js_console_log(f"[디버그] 📸 사진 링크 수집됨: {photo_urls}")
-
-    for i, url in enumerate(photo_urls):
-        try:
-            file_id = extract_drive_file_id(url.strip())
-            image = get_drive_image(file_id)
-            temp_img = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
-            image.save(temp_img.name)
-            photo_paths.append(temp_img.name)
-            js_console_log(f"[디버그] ✅ 이미지 {i + 1} 저장: {temp_img.name}")
-        except Exception as e:
-            js_console_log(f"[⚠️사진 에러] {url} 처리 실패: {e}")
-            continue
-
-    data = {
-        "member_code": member_id,
-        "age": m.get("본인(나이)", ""),
-        "height": m.get("본인(키)", ""),
-        "region": m.get("본인(거주지 - 시구)", ""),
-        "smoking": m.get("본인(흡연)", ""),
-        "drink": m.get("본인(음주)", ""),
-        "edu": m.get("본인(학력)", ""),
-        "company": m.get("본인(회사 규모)", ""),
-        "work": m.get("본인(근무 형태)", ""),
-        "religion": m.get("본인(종교)", ""),
-        "mbti": p.get("MBTI", ""),
-        "job": m.get("본인(직무)", ""),
-        "salary": m.get("본인(연봉)", ""),
-        "car": m.get("본인(자차)", ""),
-        "house": m.get("본인(자가)", ""),
-        "info_text": p.get("소개", ""),
-        "attract_text": p.get("매력", ""),
-        "hobby_text": p.get("취미", ""),
-        "dating_text": p.get("연애스타일", ""),
-        "photo_paths": photo_paths,
-    }
-
-    js_console_log(f"[디버그] 🧾 PDF 생성 시작")
-    output_path = create_pdf_from_data(data)
-    js_console_log(f"[디버그] 📄 PDF 생성 완료: {output_path}")
-
-    js_console_log(f"[디버그] ☁️ Drive 업로드 시작")
-    uploaded_id = upload_file_to_drive(
-        output_path,
-        f"{member_id}_프로필카드.pdf",
-        folder_id="104l4k5PPO25thz919Gi4241_IQ_MSsfe"
-    )
-
-    js_console_log(f"[디버그] ✅ 업로드 완료: 파일 ID {uploaded_id}")
-    return uploaded_id
-
-
 # URL 쿼리를 통해 mulit_bulk_matching 트리거
 if st.query_params.get("trigger") == ["multi_matching"]:
     with st.spinner("외부 트리거에 의해 multi matching 실행 중..."):
         run_multi_matching()
-        js_console_log("✅ 외부 트리거: 매칭 완료됨")
+        write_log("","✅ 외부 트리거: 매칭 완료됨")
         st.stop()
 
 
@@ -810,6 +842,7 @@ else:
             profile_df = load_sheet("프로필")
         except Exception as e:
             st.error("시트를 불러오는 데 실패했습니다: " + str(e))
+            write_log("","시트 로딩 실패")
             st.stop()
 
         with st.sidebar:
@@ -981,6 +1014,7 @@ else:
                                     )
                                 except Exception:
                                     st.warning("이미지 로드 실패")
+                                    write_log("","이미지 로드 실패")
 
                                 uploaded_file = st.file_uploader(f"새 이미지 업로드 {i + 1}", type=["jpg", "jpeg", "png"],
                                                                  key=f"upload_{i}")
@@ -1154,6 +1188,7 @@ else:
                                             )
                                         except Exception as e:
                                             st.warning(f"이미지 로드 실패: {e}")
+                                            write_log("",f"이미지 로드 실패: {e}")
                                     else:
                                         st.warning("유효하지 않은 이미지 링크입니다.")
 
