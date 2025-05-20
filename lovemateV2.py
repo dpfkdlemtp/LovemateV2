@@ -483,7 +483,7 @@ def generate_profile_card_from_sheet(member_id: str):
     }
 
     # 🔽 뱃지 필드 처리
-    badge_text = str(p.get("뱃지", "")).lower()
+    badge_text = str(p.get("인증 뱃지", "")).lower()
 
     data.update({
         "verify_income": "고소득" in badge_text,
