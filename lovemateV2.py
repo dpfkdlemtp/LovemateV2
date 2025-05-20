@@ -370,6 +370,17 @@ def get_drive_image(file_id):
     image.thumbnail((200, 200))  # 크기 축소
     return image
 
+def get_drive_image_profilecard(file_id):
+    service = get_drive_service()
+    request = service.files().get_media(fileId=file_id)
+    fh = io.BytesIO()
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while not done:
+        _, done = downloader.next_chunk()
+    fh.seek(0)
+    return Image.open(fh)  # 👈 썸네일 처리 없이 원본 이미지 반환
+
 @st.cache_data(ttl=300, show_spinner=False)
 def get_drive_image2(file_id):
     service = get_drive_service()
@@ -450,7 +461,7 @@ def generate_profile_card_from_sheet(member_id: str):
     for i, url in enumerate(photo_urls):
         try:
             file_id = extract_drive_file_id(url.strip())
-            image = get_drive_image(file_id)
+            image = get_drive_image_profilecard(file_id)
             temp_img = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
             image.save(temp_img.name)
             photo_paths.append(temp_img.name)
