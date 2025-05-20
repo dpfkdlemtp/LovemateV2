@@ -6,7 +6,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.lib.utils import ImageReader
 from PIL import Image, ImageOps
 import os
-import re
+import regex
 
 # ✅ 폰트 등록 (배포 환경에 맞게 상대 경로 사용)
 pdfmetrics.registerFont(TTFont('PreLight', 'fonts/Pretendard-Light.ttf'))
@@ -14,10 +14,23 @@ pdfmetrics.registerFont(TTFont('PreRegular', 'fonts/Pretendard-Regular.ttf'))
 pdfmetrics.registerFont(TTFont('PreMedium', 'fonts/Pretendard-Medium.ttf'))
 pdfmetrics.registerFont(TTFont('PreSemiBold', 'fonts/Pretendard-SemiBold.ttf'))
 
+# 유니코드 이모지 범위
+emoji_range = {
+    '\U0001F600', '\U0001F9FF',  # emoticons
+    '\U0001F300', '\U0001F5FF',  # symbols & pictographs
+    '\U0001F680', '\U0001F6FF',  # transport & map symbols
+    '\U0001F1E0', '\U0001F1FF',  # flags
+    '\U00002700', '\U000027BF',  # dingbats
+    '\U0001F900', '\U0001F9FF',  # supplemental symbols
+    '\U00002600', '\U000026FF',  # misc symbols
+    '\U00002300', '\U000023FF',  # misc technical
+    '\U0000200D', '\U0001F3FB', '\U0001F3FC', '\U0001F3FD', '\U0001F3FE', '\U0001F3FF'  # ZWJ + skin tones
+}
+
 def remove_emojis(text):
-    if not isinstance(text, str):
-        return text
-    return re.sub(r'[\U00010000-\U0010ffff]+', '', text)
+    # 모든 유니코드 이모지 및 결합된 이모지 제거
+    return regex.sub(r'\X', lambda m: '' if any(char in emoji_range for char in m.group()) else m.group(), text)
+
 
 def auto_rotate_image(image_path):
     try:
