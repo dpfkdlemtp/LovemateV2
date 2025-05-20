@@ -91,21 +91,21 @@ def create_pdf_from_data(data: dict, output_path: str = None) -> str:
     for i, (k, v) in enumerate(zip(left_keys, left_values)):
         y = row_y_start - i * row_spacing
         draw_centered_text(left_k_center, y, k, "PreSemiBold", 13, colors.HexColor("#FD6F22"))
-        c.setFont("PreMedium", 13)
+        c.setFont("PreMedium", 11)
         c.setFillColor(colors.black)
         c.drawString(left_v_x, y, v)
 
     for i, (k, v) in enumerate(zip(center_keys, center_values)):
         y = row_y_start - i * row_spacing
         draw_centered_text(center_k_center, y, k, "PreSemiBold", 13, colors.HexColor("#FD6F22"))
-        c.setFont("PreMedium", 13)
+        c.setFont("PreMedium", 11)
         c.setFillColor(colors.black)
         c.drawString(center_v_x, y, v)
 
     for i, (k, v) in enumerate(zip(right_keys, right_values)):
         y = row_y_start - i * row_spacing
         draw_centered_text(right_k_center, y, k, "PreSemiBold", 13, colors.HexColor("#FD6F22"))
-        c.setFont("PreMedium", 13)
+        c.setFont("PreMedium", 11)
         c.setFillColor(colors.black)
         c.drawString(right_v_x, y, v)
 
