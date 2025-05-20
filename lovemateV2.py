@@ -498,7 +498,7 @@ def generate_profile_card_from_sheet(member_id: str):
 
 #프로필카드 트리거
 if st.query_params.get("trigger") == "generate_card":
-    write_log("",f"<script>console.log('query_params: {st.query_params}');</script>", unsafe_allow_html=True)
+    write_log("",f"query_params: {st.query_params}")
     member_id = st.query_params.get("member_id", [""])[0]
     if member_id:
         with st.spinner(f"{member_id}의 프로필카드를 생성 중..."):
