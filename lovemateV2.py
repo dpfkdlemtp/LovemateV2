@@ -665,10 +665,14 @@ def generate_profile_card_from_sheet(member_id: str):
     member_df = load_sheet("회원")
     profile_df = load_sheet("프로필")
 
+
+    st.write(f"[디버그] 시트 로딩 완료: 회원 {len(member_df)}명, 프로필 {len(profile_df)}명")
+
     member_data = member_df[member_df["회원 ID"] == member_id]
     profile_data = profile_df[profile_df["회원 ID"] == member_id]
 
     if member_data.empty or profile_data.empty:
+        st.error(f"[❌에러] {member_id}에 해당하는 정보가 시트에 없습니다.")
         raise ValueError(f"{member_id}에 해당하는 회원 정보 또는 프로필 정보가 없습니다.")
 
     m = member_data.iloc[0].to_dict()
@@ -678,6 +682,9 @@ def generate_profile_card_from_sheet(member_id: str):
     # 임시방식: 사진1~4는 temp에 다운로드했다고 가정
     photo_urls = str(p.get("본인 사진", "")).split(",")[:4]
     photo_paths = []
+
+    st.write(f"[디버그] 📸 사진 링크 수집됨: {photo_urls}")
+
     for i, url in enumerate(photo_urls):
         try:
             file_id = extract_drive_file_id(url.strip())
@@ -685,7 +692,9 @@ def generate_profile_card_from_sheet(member_id: str):
             temp_img = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
             image.save(temp_img.name)
             photo_paths.append(temp_img.name)
-        except:
+            st.write(f"[디버그] ✅ 이미지 {i + 1} 저장: {temp_img.name}")
+        except Exception as e:
+            st.error(f"[⚠️사진 에러] {url} 처리 실패: {e}")
             continue
 
     data = {
@@ -711,11 +720,18 @@ def generate_profile_card_from_sheet(member_id: str):
         "photo_paths": photo_paths,
     }
 
+    st.write(f"[디버그] 🧾 PDF 생성 시작")
     output_path = create_pdf_from_data(data)
+    st.write(f"[디버그] 📄 PDF 생성 완료: {output_path}")
 
-    uploaded_id = upload_file_to_drive(output_path, f"{member_id}_프로필카드.pdf",
-                                       folder_id="104l4k5PPO25thz919Gi4241_IQ_MSsfe")
+    st.write(f"[디버그] ☁️ Drive 업로드 시작")
+    uploaded_id = upload_file_to_drive(
+        output_path,
+        f"{member_id}_프로필카드.pdf",
+        folder_id="104l4k5PPO25thz919Gi4241_IQ_MSsfe"
+    )
 
+    st.write(f"[디버그] ✅ 업로드 완료: 파일 ID {uploaded_id}")
     return uploaded_id
 
 
