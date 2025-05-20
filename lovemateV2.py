@@ -463,7 +463,7 @@ def generate_profile_card_from_sheet(member_id: str):
         "member_code": member_id,
         "age": m.get("본인(나이)", ""),
         "height": m.get("본인(키)", ""),
-        "region": m.get("본인(거주지 - 시구)", ""),
+        "region": p.get("본인(거주지 - 시구)", ""),
         "smoking": m.get("본인(흡연)", ""),
         "drink": m.get("본인(음주)", ""),
         "edu": m.get("본인(학력)", ""),
@@ -471,10 +471,10 @@ def generate_profile_card_from_sheet(member_id: str):
         "work": m.get("본인(근무 형태)", ""),
         "religion": m.get("본인(종교)", ""),
         "mbti": p.get("MBTI", ""),
-        "job": m.get("본인(직무)", ""),
-        "salary": m.get("본인(연봉)", ""),
-        "car": m.get("본인(자차)", ""),
-        "house": m.get("본인(자가)", ""),
+        "job": p.get("본인(직무)", ""),
+        "salary": p.get("본인(연봉)", ""),
+        "car": p.get("본인(자차)", ""),
+        "house": p.get("본인(자가)", ""),
         "info_text": p.get("소개", ""),
         "attract_text": p.get("매력", ""),
         "hobby_text": p.get("취미", ""),
@@ -482,7 +482,19 @@ def generate_profile_card_from_sheet(member_id: str):
         "photo_paths": photo_paths,
     }
 
-    write_log(member_id, f"[디버그] 🧾 PDF 생성 시작")
+    # 🔽 뱃지 필드 처리
+    badge_text = str(p.get("뱃지", "")).lower()
+
+    data.update({
+        "verify_income": "고소득" in badge_text,
+        "verify_job": any(x in badge_text for x in ["전문직", "대기업", "사업가"]),
+        "verify_house": "부동산" in badge_text,
+        "verify_edu": "고학력" in badge_text,
+        "verify_car": any(x in badge_text for x in ["자동차", "자차"]),
+        "verify_asset": "자산" in badge_text
+    })
+
+    write_log(member_id, f"[디버그] 🧾 PDF 생성 시작 {data}")
     output_path = create_pdf_from_data(data)
     write_log(member_id, f"[디버그] 📄 PDF 생성 완료: {output_path}")
 
