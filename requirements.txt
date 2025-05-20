@@ -7,3 +7,4 @@ Pillow
 numpy
 reportlab
 cryptography
+re
