@@ -721,6 +721,8 @@ def auto_match_members(df, match_data):
     sent_ids_set = set(map(str.strip, sent_ids))
     filtered = filtered[~filtered["회원 ID"].astype(str).isin(sent_ids_set)]
 
+    st.write("컬럼 목록 확인:", df.columns.tolist())
+
     # ✅ 보내진 횟수 병합
     filtered = filtered.merge(
         df[["회원 ID", "보내진 횟수"]],
