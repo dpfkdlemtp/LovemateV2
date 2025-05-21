@@ -1160,7 +1160,7 @@ else:
                         match_row = matched_profiles[matched_profiles["회원 ID"] == member_id]
                         score_row = top_rows[top_rows["회원 ID"] == member_id]
                         member_row = member_df[member_df["회원 ID"] == member_id]
-                        write_log("score_row",score_row)
+                        write_log("score_row",score_row+match_row+member_row)
                         if match_row.empty or score_row.empty or member_row.empty:
                             continue
                         row = match_row.iloc[0]
