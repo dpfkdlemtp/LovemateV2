@@ -1160,7 +1160,7 @@ else:
                         match_row = matched_profiles[matched_profiles["회원 ID"] == member_id]
                         score_row = top_rows[top_rows["회원 ID"] == member_id]
                         member_row = member_df[member_df["회원 ID"] == member_id]
-                        write_log("",score_row)
+                        write_log("score_row",score_row)
                         if match_row.empty or score_row.empty or member_row.empty:
                             continue
                         row = match_row.iloc[0]
@@ -1170,7 +1170,7 @@ else:
                             주문번호 = member_row.iloc[0].get("주문번호", "")
                             이름 = row.get("이름", "")
                             보내진횟수 = score_info.get("보내진 횟수", "")
-                            write_log("",보내진횟수)
+                            write_log("보내진횟수",보내진횟수)
 
                             st.markdown(f"**주문번호 및 이름:** {주문번호} / {이름}")
                             st.markdown(f"**회원 ID:** {row.get('회원 ID', '')}")
