@@ -616,15 +616,6 @@ def match_members(df, match_data):
     filtered = filtered[~filtered["회원 ID"].astype(str).isin(sent_ids_set)]
     print(f"받은 프로필 필터링 후 인원: {filtered}")
 
-    st.write("컬럼 목록 확인:", df.columns.tolist())
-
-    # ✅ 보내진 횟수 병합
-    filtered = filtered.merge(
-        df[["회원 ID", "보내진 횟수"]],
-        on="회원 ID",
-        how="left"
-    )
-
     return filtered
 
 def get_profile_candidates(member_id, channel, condition_list, member_df):
@@ -722,13 +713,6 @@ def auto_match_members(df, match_data):
     sent_ids = str(target.get("받은 프로필 목록", "")).split(",") if pd.notna(target.get("받은 프로필 목록")) else []
     sent_ids_set = set(map(str.strip, sent_ids))
     filtered = filtered[~filtered["회원 ID"].astype(str).isin(sent_ids_set)]
-
-    # ✅ 보내진 횟수 병합
-    filtered = filtered.merge(
-        df[["회원 ID", "보내진 횟수"]],
-        on="회원 ID",
-        how="left"
-    )
 
     return filtered
 
@@ -1176,7 +1160,6 @@ else:
                         match_row = matched_profiles[matched_profiles["회원 ID"] == member_id]
                         score_row = top_rows[top_rows["회원 ID"] == member_id]
                         member_row = member_df[member_df["회원 ID"] == member_id]
-                        write_log("score_row",st.session_state["top_ids"])
                         if match_row.empty or score_row.empty or member_row.empty:
                             continue
                         row = match_row.iloc[0]
@@ -1186,7 +1169,6 @@ else:
                             주문번호 = member_row.iloc[0].get("주문번호", "")
                             이름 = row.get("이름", "")
                             보내진횟수 = score_info.get("보내진 횟수", "")
-                            write_log("보내진횟수",보내진횟수)
 
                             st.markdown(f"**주문번호 및 이름:** {주문번호} / {이름}")
                             st.markdown(f"**회원 ID:** {row.get('회원 ID', '')}")
