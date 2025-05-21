@@ -616,6 +616,8 @@ def match_members(df, match_data):
     filtered = filtered[~filtered["회원 ID"].astype(str).isin(sent_ids_set)]
     print(f"받은 프로필 필터링 후 인원: {filtered}")
 
+    st.write("컬럼 목록 확인:", df.columns.tolist())
+
     # ✅ 보내진 횟수 병합
     filtered = filtered.merge(
         df[["회원 ID", "보내진 횟수"]],
@@ -720,8 +722,6 @@ def auto_match_members(df, match_data):
     sent_ids = str(target.get("받은 프로필 목록", "")).split(",") if pd.notna(target.get("받은 프로필 목록")) else []
     sent_ids_set = set(map(str.strip, sent_ids))
     filtered = filtered[~filtered["회원 ID"].astype(str).isin(sent_ids_set)]
-
-    st.write("컬럼 목록 확인:", df.columns.tolist())
 
     # ✅ 보내진 횟수 병합
     filtered = filtered.merge(
