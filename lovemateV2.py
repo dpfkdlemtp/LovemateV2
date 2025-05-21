@@ -32,7 +32,7 @@ import inspect
 
 st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
 
-tab1, tab2, tab3, tab4 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "메모장"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "메모장", "프로필카드 생성"])
 
 # ✅ 세션 기본 설정 (로그인 생략용 테스트)
 if "logged_in" not in st.session_state:
@@ -518,22 +518,6 @@ def generate_profile_card_from_sheet(member_id: str):
 
     write_log(member_id, f"[디버그] ✅ 업로드 완료: 파일 ID {uploaded_id}")
     return uploaded_id
-
-#프로필카드 트리거
-if st.query_params.get("trigger") == "generate_card":
-    write_log("",f"query_params: {st.query_params}")
-    member_id = st.query_params.get("member_id")
-    if member_id:
-        with st.spinner(f"{member_id}의 프로필카드를 생성 중..."):
-            try:
-                uploaded_id = generate_profile_card_from_sheet(member_id)
-                st.success(f"✅ 프로필카드 생성 완료 (Drive ID: {uploaded_id})")
-            except Exception as e:
-                st.error(f"❌ 오류 발생: {e}")
-                write_log("","프로필카드 생성 오류")
-    else:
-        st.error("❌ member_id 파라미터가 없습니다.")
-    st.stop()
 
 # ---------------------------
 # 매칭 로직
@@ -1348,6 +1332,20 @@ else:
             st.session_state[f"memo_content_{user_id}"] = memo
             st.success("✅ 메모가 저장되었습니다.")
 
+    with tab5:
+        st.subheader("📇 회원 ID로 프로필카드 생성")
 
+        member_id_input = st.text_input("회원 ID 입력", key="profilecard_input")
 
-
+        if st.button("📄 프로필카드 생성하기", key="profilecard_generate"):
+            if not member_id_input.strip():
+                st.warning("회원 ID를 입력해주세요.")
+            else:
+                with st.spinner("프로필카드를 생성 중입니다..."):
+                    try:
+                        uploaded_id = generate_profile_card_from_sheet(member_id_input.strip())
+                        file_url = f"https://drive.google.com/file/d/{uploaded_id}/view?usp=sharing"
+                        st.success("✅ 프로필카드 생성 완료!")
+                        st.markdown(f"[📄 생성된 프로필카드 보기]({file_url})", unsafe_allow_html=True)
+                    except Exception as e:
+                        st.error(f"❌ 오류 발생: {e}")
