@@ -853,6 +853,7 @@ elif code and not st.session_state.get("oauth_code_used", False):
     st.query_params.clear()
     st.write("2")
     # ✅ 코드로 토큰 요청
+    st.write(code,CLIENT_ID,st.secrets["google"]["client_secret"],REDIRECT_URI)
     data = {
         "code": code,
         "client_id": CLIENT_ID,
