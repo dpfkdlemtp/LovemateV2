@@ -870,6 +870,8 @@ elif code and not st.session_state["logged_in"]:
 
         df_accounts, ws_accounts = connect_sheet("계정정보")
         df_accounts.columns = [col.strip() for col in df_accounts.columns]
+        st.write("📄 df_accounts.columns", df_accounts.columns.tolist())
+        st.write("🔢 계정 시트 행 수:", len(df_accounts))
 
         if "이메일" not in df_accounts.columns:
             ws_accounts.update("A1:E1", [["이메일", "이름", "가입허용", "마지막 로그인 시간", "비밀번호"]])
@@ -886,6 +888,10 @@ elif code and not st.session_state["logged_in"]:
             ws_accounts.update(f"D{row_index}", [[now]])
 
             user_row = df_accounts.loc[df_accounts["이메일"] == user_email].iloc[0]
+
+            st.write("🔎 row_index", row_index)
+            st.write("📋 user_row", user_row.to_dict())
+            
             가입허용 = str(user_row.get("가입허용", "")).strip().upper()
             enc_pw = user_row.get("비밀번호", "")
 
