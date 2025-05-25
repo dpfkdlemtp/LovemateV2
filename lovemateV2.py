@@ -27,24 +27,90 @@ from makeProfileCard import create_pdf_from_data
 import tempfile
 from datetime import datetime
 import inspect
-
+from streamlit_oauth import OAuth2Component
 
 
 st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "메모장", "프로필카드 생성"])
 
-# ✅ 세션 기본 설정 (로그인 생략용 테스트)
-if "logged_in" not in st.session_state:
-    # 테스트용 자동 로그인 활성화
-    st.session_state["logged_in"] = True
-    st.session_state["user_id"] = "TEST"
 
-# # ✅ 세션 기본 설정
+client_id = st.secrets["google"]["client_id"]
+client_secret = st.secrets["google"]["client_secret"]
+
+oauth2 = OAuth2Component(
+    client_id=client_id,
+    client_secret=client_secret,
+    auth_url="https://accounts.google.com/o/oauth2/auth",
+    token_url="https://oauth2.googleapis.com/token",
+    redirect_uri="https://lovematev2.streamlit.app",
+)
+
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+if "user_id" not in st.session_state:
+    st.session_state["user_id"] = ""
+
+if not st.session_state["logged_in"]:
+    st.title("🔐 Google 로그인")
+
+    result = oauth2.authorize_button(
+        name="Google 계정으로 로그인",
+        icon="🔐",
+        scopes=["openid", "email", "profile"],
+        authorization_params={"access_type": "offline"}
+    )
+
+    if result and "userinfo" in result:
+        user_email = result["userinfo"]["email"].strip()
+        st.session_state["user_id"] = user_email
+
+        # ✅ 계정정보 시트 연결 및 불러오기
+        df_accounts, ws_accounts = connect_sheet("계정정보")
+        df_accounts.columns = [col.strip() for col in df_accounts.columns]
+
+        # ✅ 시트 헤더가 없을 경우 초기화
+        if "이메일" not in df_accounts.columns:
+            ws_accounts.update("A1:C1", [["이메일", "마지막 로그인 시간", "가입허용"]])
+            df_accounts = pd.DataFrame(columns=["이메일", "마지막 로그인 시간", "가입허용"])
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        if user_email not in df_accounts["이메일"].values:
+            # ✅ 신규 사용자 등록
+            ws_accounts.append_row([user_email, now, ""])
+            st.warning("📬 관리자 승인이 필요합니다. 가입 요청이 기록되었습니다.")
+            st.stop()
+        else:
+            # ✅ 기존 사용자 → 로그인 허용 여부 확인 + 시간 업데이트
+            row_index = df_accounts.index[df_accounts["이메일"] == user_email][0] + 2  # 헤더 포함
+            ws_accounts.update(f"B{row_index}", [[now]])  # B열 = 마지막 로그인 시간
+
+            user_row = df_accounts.loc[df_accounts["이메일"] == user_email].iloc[0]
+            if str(user_row.get("가입허용", "")).strip().upper() == "O":
+                st.session_state["logged_in"] = True
+                st.success(f"✅ 로그인 성공: {user_email} 님")
+                st.rerun()
+            else:
+                st.warning("⛔ 아직 관리자 승인 대기 중입니다. 가입 요청은 이미 등록되었습니다.")
+                st.stop()
+else:
+    st.sidebar.markdown(f"👤 **{st.session_state['user_id']} 님**")
+    if st.sidebar.button("🔓 로그아웃"):
+        st.session_state.clear()
+        st.rerun()
+
+# # ✅ 세션 기본 설정 (로그인 생략용 테스트)
 # if "logged_in" not in st.session_state:
-#     st.session_state["logged_in"] = False
-# if "user_id" not in st.session_state:
-#     st.session_state["user_id"] = ""
+#     # 테스트용 자동 로그인 활성화
+#     st.session_state["logged_in"] = True
+#     st.session_state["user_id"] = "TEST"
+#
+# # # ✅ 세션 기본 설정
+# # if "logged_in" not in st.session_state:
+# #     st.session_state["logged_in"] = False
+# # if "user_id" not in st.session_state:
+# #     st.session_state["user_id"] = ""
 
 
 
@@ -84,17 +150,6 @@ def load_secret_key():
     ws = sheet.worksheet("키정보")
     key = ws.acell('B1').value
     return key.encode()
-
-
-# 🔒 비밀번호 암호화
-def encrypt_password(password):
-    fernet = Fernet(load_secret_key())
-    return fernet.encrypt(password.encode()).decode()
-
-# 🔓 비밀번호 복호화
-def decrypt_password(encrypted_password):
-    fernet = Fernet(load_secret_key())
-    return fernet.decrypt(encrypted_password.encode()).decode()
 
 # ✅ 구글 관리자 스프레드시트 연결
 def connect_sheet(sheet_name):
