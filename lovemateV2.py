@@ -203,6 +203,29 @@ elif code and not st.session_state["logged_in"]:
 
             user_row = df_accounts.loc[df_accounts["이메일"] == user_email].iloc[0]
             if str(user_row.get("가입허용", "")).strip().upper() == "O":
+                # 비밀번호 열 존재 여부 확인 및 설정 여부 체크
+                if "비밀번호" not in df_accounts.columns:
+                    ws_accounts.update("E1", [["비밀번호"]])
+                    df_accounts["비밀번호"] = ""
+
+                if not user_row.get("비밀번호", ""):
+                    with st.form("pw_setup_form"):
+                        new_pw = st.text_input("비밀번호를 설정해주세요", type="password")
+                        submitted = st.form_submit_button("비밀번호 설정 완료")
+
+                        if submitted and new_pw:
+                            # 🔐 비밀번호 암호화
+                            key = load_secret_key()
+                            fernet = Fernet(key)
+                            enc_pw = fernet.encrypt(new_pw.encode()).decode()
+                            ws_accounts.update_cell(row_index, 5, enc_pw)
+                            st.success("✅ 비밀번호가 설정되었습니다. 다시 로그인해주세요.")
+                            st.stop()
+                        else:
+                            st.warning("비밀번호를 입력해주세요.")
+                        st.stop()
+
+                # 이미 비밀번호 설정된 경우 로그인 처리
                 st.session_state["logged_in"] = True
                 st.sidebar.success(f"✅ {user_email} 님 로그인됨")
                 if st.sidebar.button("🔓 로그아웃"):
@@ -812,35 +835,31 @@ if trigger == "multi_matching":
 # -------------------------------------------
 # 🛡️ 로그인 화면
 if not st.session_state["logged_in"]:
-    st.title("🔒 로그인 또는 회원가입")
+    st.title("🔒 로그인 ")
+    # 🔐 비밀번호 인증 절차
+    with st.form("pw_login_form"):
+        input_pw = st.text_input("비밀번호를 입력해주세요", type="password")
+        login_submit = st.form_submit_button("로그인")
 
-    login_tab, signup_tab = st.tabs(["로그인", "회원가입"])
-
-    with login_tab:
-        user_id = st.text_input("ID", key="login_id")
-        user_pw = st.text_input("PW", type="password", key="login_pw")
-
-        if st.button("로그인"):
-            if login(user_id, user_pw):
-                st.session_state["logged_in"] = True
-                st.session_state["user_id"] = user_id
-                st.success(f"✅ 로그인 성공: {user_id}님 환영합니다.")
-                st.rerun()
-            else:
-                st.error("❌ 로그인 실패: ID 또는 비밀번호가 일치하지 않습니다.")
-
-    with signup_tab:
-        new_id = st.text_input("새 ID", key="signup_id")
-        new_pw = st.text_input("새 PW", type="password", key="signup_pw")
-
-        if st.button("회원가입"):
-            success, msg = signup(new_id, new_pw)
-            if success:
-                st.success(msg)
-                st.rerun()
-            else:
-                st.error(msg)
-
+        if login_submit:
+            key = load_secret_key()
+            fernet = Fernet(key)
+            try:
+                decrypted_pw = fernet.decrypt(user_row.get("비밀번호", "").encode()).decode()
+                if input_pw == decrypted_pw:
+                    st.session_state["logged_in"] = True
+                    st.session_state["user_id"] = user_email
+                    st.success(f"✅ 로그인 성공: {user_email}님 환영합니다.")
+                    if st.sidebar.button("🔓 로그아웃"):
+                        st.session_state.clear()
+                        st.query_params.clear()
+                        st.rerun()
+                else:
+                    st.error("❌ 비밀번호가 일치하지 않습니다.")
+                    st.stop()
+            except:
+                st.error("❌ 비밀번호 확인 중 오류가 발생했습니다.")
+                st.stop()
 
 # -------------------------------------------
 # 🚀 로그인 완료 후 탭 화면
