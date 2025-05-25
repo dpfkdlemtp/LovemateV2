@@ -853,7 +853,7 @@ elif code and not st.session_state.get("oauth_code_used", False):
 
     # ✅ 인증 코드 URL 제거 후 rerun (code 유효 상태에서 즉시 제거)
     st.query_params.clear()
-    st.experimental_rerun()
+    st.rerun()
     st.session_state["oauth_code_used"] = True
     st.write("2")
     # ✅ 코드로 토큰 요청
