@@ -36,6 +36,9 @@ import pandas as pd
 from datetime import datetime
 from urllib.parse import urlencode
 
+params = st.query_params()
+trigger = params.get("trigger", [None])[0]
+
 st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "메모장", "프로필카드 생성"])
@@ -144,7 +147,7 @@ if "logged_in" not in st.session_state:
 if "user_id" not in st.session_state:
     st.session_state["user_id"] = ""
 
-code = st.experimental_get_query_params().get("code", [None])[0]
+code = params.get("code", [None])[0]
 
 if not st.session_state["logged_in"] and not code:
     st.title("🔐 Google 로그인")
@@ -204,7 +207,7 @@ elif code and not st.session_state["logged_in"]:
                 st.sidebar.success(f"✅ {user_email} 님 로그인됨")
                 if st.sidebar.button("🔓 로그아웃"):
                     st.session_state.clear()
-                    st.experimental_set_query_params()
+                    st.query_params.clear()
                     st.rerun()
             else:
                 st.warning("⛔ 아직 관리자 승인 대기 중입니다. 가입 요청은 이미 등록되었습니다.")
@@ -213,7 +216,7 @@ else:
     st.sidebar.success(f"✅ {st.session_state['user_id']} 님 로그인됨")
     if st.sidebar.button("🔓 로그아웃"):
         st.session_state.clear()
-        st.experimental_set_query_params()
+        st.query_params.clear()
         st.rerun()
 
 # # ✅ Google 서비스 계정 키 로딩 함수
@@ -794,7 +797,8 @@ def run_multi_matching():
 
 
 # URL 쿼리를 통해 mulit_bulk_matching 트리거
-if st.query_params.get("trigger") == ["multi_matching"]:
+if trigger == "multi_matching":
+    # 실행 코드
     with st.spinner("외부 트리거에 의해 multi matching 실행 중..."):
         run_multi_matching()
         write_log("","✅ 외부 트리거: 매칭 완료됨")
