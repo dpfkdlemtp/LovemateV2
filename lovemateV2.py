@@ -849,7 +849,8 @@ if not st.session_state["logged_in"] and not code:
     st.markdown(f"[🔑 Google 계정으로 로그인]({login_url})")
     st.stop()
 
-elif code and not st.session_state["logged_in"]:
+elif code and not st.session_state.get("oauth_code_used", False):
+    st.session_state["oauth_code_used"] = True
     st.write("2")
     # ✅ 코드로 토큰 요청
     data = {
@@ -861,90 +862,96 @@ elif code and not st.session_state["logged_in"]:
     }
     token_res = requests.post(TOKEN_ENDPOINT, data=data).json()
     st.write("🔄 token_res 응답:", token_res)
+
     id_token = token_res.get("id_token")
     access_token = token_res.get("access_token")
 
-    if id_token and access_token:
-        st.write("3")
-        req = google.auth.transport.requests.Request()
-        id_info = google.oauth2.id_token.verify_oauth2_token(id_token, req, CLIENT_ID)
-        user_email = id_info.get("email")
-        user_name = id_info.get("name", user_email)
-        st.session_state["user_id"] = user_email
+    if not id_token or not access_token:
+        st.error("❌ 로그인 인증코드가 유효하지 않거나 만료되었습니다. 다시 로그인해주세요.")
+        st.stop()
 
-        df_accounts, ws_accounts = connect_sheet("계정정보")
-        df_accounts.columns = [col.strip() for col in df_accounts.columns]
-        st.write("📄 df_accounts.columns", df_accounts.columns.tolist())
-        st.write("🔢 계정 시트 행 수:", len(df_accounts))
+    st.write("3")
+    req = google.auth.transport.requests.Request()
+    id_info = google.oauth2.id_token.verify_oauth2_token(id_token, req, CLIENT_ID)
+    user_email = id_info.get("email")
+    user_name = id_info.get("name", user_email)
+    st.session_state["user_id"] = user_email
+    st.query_params.clear()  # ✅ ?code= 제거하여 재요청 방지
 
-        if "이메일" not in df_accounts.columns:
-            st.write("4")
-            ws_accounts.update("A1:E1", [["이메일", "이름", "가입허용", "마지막 로그인 시간", "비밀번호"]])
-            df_accounts = pd.DataFrame(columns=["이메일", "이름", "가입허용", "마지막 로그인 시간", "비밀번호"])
+    df_accounts, ws_accounts = connect_sheet("계정정보")
+    df_accounts.columns = [col.strip() for col in df_accounts.columns]
+    st.write("📄 df_accounts.columns", df_accounts.columns.tolist())
+    st.write("🔢 계정 시트 행 수:", len(df_accounts))
 
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if "이메일" not in df_accounts.columns:
+        st.write("4")
+        ws_accounts.update("A1:E1", [["이메일", "이름", "가입허용", "마지막 로그인 시간", "비밀번호"]])
+        df_accounts = pd.DataFrame(columns=["이메일", "이름", "가입허용", "마지막 로그인 시간", "비밀번호"])
 
-        if user_email not in df_accounts["이메일"].values:
-            st.write("5")
-            ws_accounts.append_row([user_email, user_name, "", now])
-            st.warning("📬 관리자 승인이 필요합니다. 가입 요청이 기록되었습니다.")
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if user_email not in df_accounts["이메일"].values:
+        st.write("5")
+        ws_accounts.append_row([user_email, user_name, "", now])
+        st.warning("📬 관리자 승인이 필요합니다. 가입 요청이 기록되었습니다.")
+        st.stop()
+    else:
+        st.write("6")
+        row_index = df_accounts.index[df_accounts["이메일"] == user_email][0] + 2
+        ws_accounts.update(f"D{row_index}", [[now]])
+
+        user_row = df_accounts.loc[df_accounts["이메일"] == user_email].iloc[0]
+
+        st.write("🔎 row_index", row_index)
+        st.write("📋 user_row", user_row.to_dict())
+
+        가입허용 = str(user_row.get("가입허용", "")).strip().upper()
+        enc_pw = user_row.get("비밀번호", "")
+
+        if 가입허용 != "O":
+            st.write("7")
+            st.warning("⛔ 아직 관리자 승인 대기 중입니다. 가입 요청은 이미 등록되었습니다.")
             st.stop()
+
+        if not enc_pw:
+            st.write("8")
+            st.warning("🔐 비밀번호가 아직 설정되지 않았습니다. 아래에서 설정해주세요.")
+            with st.form("pw_setup_form"):
+                new_pw = st.text_input("비밀번호 설정", type="password")
+                submitted = st.form_submit_button("비밀번호 설정 완료")
+                if submitted and new_pw:
+                    key = load_secret_key()
+                    fernet = Fernet(key)
+                    encrypted = fernet.encrypt(new_pw.encode()).decode()
+                    ws_accounts.update_cell(row_index, 5, encrypted)
+                    st.success("✅ 비밀번호가 설정되었습니다. 다시 로그인해주세요.")
+                    st.stop()
+                elif submitted:
+                    st.error("❌ 비밀번호를 입력해주세요.")
+                    st.stop()
         else:
-            st.write("6")
-            row_index = df_accounts.index[df_accounts["이메일"] == user_email][0] + 2
-            ws_accounts.update(f"D{row_index}", [[now]])
-
-            user_row = df_accounts.loc[df_accounts["이메일"] == user_email].iloc[0]
-
-            st.write("🔎 row_index", row_index)
-            st.write("📋 user_row", user_row.to_dict())
-
-            가입허용 = str(user_row.get("가입허용", "")).strip().upper()
-            enc_pw = user_row.get("비밀번호", "")
-
-            if 가입허용 != "O":
-                st.write("7")
-                st.warning("⛔ 아직 관리자 승인 대기 중입니다. 가입 요청은 이미 등록되었습니다.")
-                st.stop()
-
-            if not enc_pw:
-                st.write("8")
-                st.warning("🔐 비밀번호가 아직 설정되지 않았습니다. 아래에서 설정해주세요.")
-                with st.form("pw_setup_form"):
-                    new_pw = st.text_input("비밀번호 설정", type="password")
-                    submitted = st.form_submit_button("비밀번호 설정 완료")
-                    if submitted and new_pw:
+            st.write("9")
+            st.warning("🔒 비밀번호를 입력해주세요.")
+            with st.form("pw_login_form"):
+                input_pw = st.text_input("비밀번호", type="password")
+                submitted = st.form_submit_button("로그인")
+                if submitted:
+                    try:
                         key = load_secret_key()
                         fernet = Fernet(key)
-                        encrypted = fernet.encrypt(new_pw.encode()).decode()
-                        ws_accounts.update_cell(row_index, 5, encrypted)
-                        st.success("✅ 비밀번호가 설정되었습니다. 다시 로그인해주세요.")
-                        st.stop()
-                    elif submitted:
-                        st.error("❌ 비밀번호를 입력해주세요.")
-                        st.stop()
-            else:
-                st.write("9")
-                st.warning("🔒 비밀번호를 입력해주세요.")
-                with st.form("pw_login_form"):
-                    input_pw = st.text_input("비밀번호", type="password")
-                    submitted = st.form_submit_button("로그인")
-                    if submitted:
-                        try:
-                            key = load_secret_key()
-                            fernet = Fernet(key)
-                            decrypted = fernet.decrypt(enc_pw.encode()).decode()
-                            if input_pw == decrypted:
-                                st.session_state["logged_in"] = True
-                                st.session_state["user_id"] = user_email
-                                st.success(f"✅ 로그인 성공: {user_email}님 환영합니다.")
-                                st.rerun()
-                            else:
-                                st.error("❌ 비밀번호가 일치하지 않습니다.")
-                                st.stop()
-                        except:
-                            st.error("❌ 비밀번호 복호화 오류가 발생했습니다.")
+                        decrypted = fernet.decrypt(enc_pw.encode()).decode()
+                        if input_pw == decrypted:
+                            st.session_state["logged_in"] = True
+                            st.session_state["user_id"] = user_email
+                            st.success(f"✅ 로그인 성공: {user_email}님 환영합니다.")
+                            st.query_params.clear()  # 🔒 재요청 방지
+                        else:
+                            st.error("❌ 비밀번호가 일치하지 않습니다.")
                             st.stop()
+                    except:
+                        st.error("❌ 비밀번호 복호화 오류가 발생했습니다.")
+                        st.stop()
+
 
 
 # -------------------------------------------
