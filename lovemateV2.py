@@ -52,7 +52,9 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원",
 # # if "user_id" not in st.session_state:
 # #     st.session_state["user_id"] = ""
 
-
+#Streamlit App 전용
+def load_google_service_account_key():
+    return st.secrets["gcp"]
 
 # Streamlit 콘솔 로그 출력용 (브라우저 개발자 도구에서 확인 가능)
 def js_console_log(message):
@@ -60,8 +62,6 @@ def js_console_log(message):
         f"<script>console.log('[Streamlit JS] {message}');</script>",
         unsafe_allow_html=True
     )
-
-
 
 # 🔒 암복호화용 키 로딩 (키정보 시트 B1)
 @st.cache_resource(show_spinner=False)
@@ -215,10 +215,6 @@ else:
         st.session_state.clear()
         st.experimental_set_query_params()
         st.rerun()
-
-#Streamlit App 전용
-def load_google_service_account_key():
-    return st.secrets["gcp"]
 
 # # ✅ Google 서비스 계정 키 로딩 함수
 # def load_google_service_account_key():
