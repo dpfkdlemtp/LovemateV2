@@ -835,6 +835,7 @@ if trigger == "multi_matching":
 # -------------------------------------------
 # 🛡️ 로그인 화면 (Google OAuth 후 비밀번호 설정 포함)
 if not st.session_state["logged_in"] and not code:
+    st.write("1")
     st.title("🔐 Google 로그인")
     query = urlencode({
         "client_id": CLIENT_ID,
@@ -849,6 +850,7 @@ if not st.session_state["logged_in"] and not code:
     st.stop()
 
 elif code and not st.session_state["logged_in"]:
+    st.write("2")
     # ✅ 코드로 토큰 요청
     data = {
         "code": code,
@@ -862,6 +864,7 @@ elif code and not st.session_state["logged_in"]:
     access_token = token_res.get("access_token")
 
     if id_token and access_token:
+        st.write("3")
         req = google.auth.transport.requests.Request()
         id_info = google.oauth2.id_token.verify_oauth2_token(id_token, req, CLIENT_ID)
         user_email = id_info.get("email")
@@ -874,16 +877,19 @@ elif code and not st.session_state["logged_in"]:
         st.write("🔢 계정 시트 행 수:", len(df_accounts))
 
         if "이메일" not in df_accounts.columns:
+            st.write("4")
             ws_accounts.update("A1:E1", [["이메일", "이름", "가입허용", "마지막 로그인 시간", "비밀번호"]])
             df_accounts = pd.DataFrame(columns=["이메일", "이름", "가입허용", "마지막 로그인 시간", "비밀번호"])
 
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         if user_email not in df_accounts["이메일"].values:
+            st.write("5")
             ws_accounts.append_row([user_email, user_name, "", now])
             st.warning("📬 관리자 승인이 필요합니다. 가입 요청이 기록되었습니다.")
             st.stop()
         else:
+            st.write("6")
             row_index = df_accounts.index[df_accounts["이메일"] == user_email][0] + 2
             ws_accounts.update(f"D{row_index}", [[now]])
 
@@ -891,15 +897,17 @@ elif code and not st.session_state["logged_in"]:
 
             st.write("🔎 row_index", row_index)
             st.write("📋 user_row", user_row.to_dict())
-            
+
             가입허용 = str(user_row.get("가입허용", "")).strip().upper()
             enc_pw = user_row.get("비밀번호", "")
 
             if 가입허용 != "O":
+                st.write("7")
                 st.warning("⛔ 아직 관리자 승인 대기 중입니다. 가입 요청은 이미 등록되었습니다.")
                 st.stop()
 
             if not enc_pw:
+                st.write("8")
                 st.warning("🔐 비밀번호가 아직 설정되지 않았습니다. 아래에서 설정해주세요.")
                 with st.form("pw_setup_form"):
                     new_pw = st.text_input("비밀번호 설정", type="password")
@@ -915,6 +923,7 @@ elif code and not st.session_state["logged_in"]:
                         st.error("❌ 비밀번호를 입력해주세요.")
                         st.stop()
             else:
+                st.write("9")
                 st.warning("🔒 비밀번호를 입력해주세요.")
                 with st.form("pw_login_form"):
                     input_pw = st.text_input("비밀번호", type="password")
