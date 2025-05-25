@@ -8,3 +8,4 @@ numpy
 reportlab
 cryptography
 regex
+streamlit-oauth
