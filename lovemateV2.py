@@ -860,6 +860,7 @@ elif code and not st.session_state["logged_in"]:
         "grant_type": "authorization_code"
     }
     token_res = requests.post(TOKEN_ENDPOINT, data=data).json()
+    st.write("🔄 token_res 응답:", token_res)
     id_token = token_res.get("id_token")
     access_token = token_res.get("access_token")
 
