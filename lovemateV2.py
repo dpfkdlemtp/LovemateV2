@@ -36,7 +36,7 @@ import pandas as pd
 from datetime import datetime
 from urllib.parse import urlencode
 
-params = st.query_params()
+params = st.query_params
 trigger = params.get("trigger", [None])[0]
 
 st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
