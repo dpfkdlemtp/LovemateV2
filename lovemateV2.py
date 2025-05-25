@@ -850,6 +850,7 @@ if not st.session_state.get("logged_in") and not code:
 
 elif code and not st.session_state.get("oauth_code_used", False):
     st.session_state["oauth_code_used"] = True
+    st.query_params.clear()
     st.write("2")
     # ✅ 코드로 토큰 요청
     data = {
