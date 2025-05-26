@@ -255,6 +255,7 @@ if "user_id" not in st.session_state:
 code = params.get("code", [None])[0]
 
 if not st.session_state["logged_in"] and not code:
+    st.write("1")
     st.session_state.clear()
     st.title("🔐 Google 로그인")
     query = urlencode({
@@ -270,6 +271,7 @@ if not st.session_state["logged_in"] and not code:
     st.stop()
 
 elif code and not st.session_state["logged_in"]:
+    st.write("2")
     # ✅ 코드로 토큰 요청
     data = {
         "code": code,
@@ -283,6 +285,7 @@ elif code and not st.session_state["logged_in"]:
     access_token = token_res.get("access_token")
 
     if id_token and access_token:
+        st.write("3")
         req = google.auth.transport.requests.Request()
         id_info = google.oauth2.id_token.verify_oauth2_token(id_token, req, CLIENT_ID)
         user_email = id_info.get("email")
@@ -322,6 +325,7 @@ elif code and not st.session_state["logged_in"]:
                 st.warning("⛔ 아직 관리자 승인 대기 중입니다. 가입 요청은 이미 등록되었습니다.")
                 st.stop()
 else:
+    st.write("4")
     st.sidebar.success(f"✅ {st.session_state['user_id']} 님 로그인됨")
     if st.sidebar.button("🔓 로그아웃"):
         st.session_state.clear()
