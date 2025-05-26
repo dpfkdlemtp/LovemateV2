@@ -171,17 +171,18 @@ def create_account_sheet():
     return worksheet
 
 def signup(new_id, new_pw):
-    create_account_sheet()
     df_accounts, ws_accounts = connect_sheet("계정정보")
-    df_memo, ws_memo = connect_sheet("메모")
-    df_log, ws_log = connect_sheet("로그인기록")
-    st.write("계정정보 시트 컬럼:", df_accounts.columns.tolist())
+
+    # ✅ 계정정보 시트가 비어있거나 헤더가 없는 경우 → 초기화
+    if df_accounts.empty or "ID" not in df_accounts.columns:
+        ws_accounts.update("A1:C1", [["ID", "PW", "마지막 로그인 시간"]])
+        df_accounts = pd.DataFrame(columns=["ID", "PW", "마지막 로그인 시간"])
+        st.warning("⚠️ 계정정보 시트가 비어 있어 자동 초기화되었습니다. 다시 시도해주세요.")
+        return False, "⚠️ 시트를 초기화했어요. 다시 회원가입을 시도해주세요."
+
     # ID 중복 체크
     if new_id in df_accounts["ID"].values:
         return False, "❌ 이미 존재하는 ID입니다."
-
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    encrypted_pw = encrypt_password(new_pw)
 
     # 1. 계정정보 추가
     new_account_row = [new_id, encrypted_pw, now_str]
