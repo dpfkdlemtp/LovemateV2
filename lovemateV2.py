@@ -252,8 +252,6 @@ if "logged_in" not in st.session_state:
 if "user_id" not in st.session_state:
     st.session_state["user_id"] = ""
 
-code = params.get("code", [None])[0]
-
 # # ✅ Google 서비스 계정 키 로딩 함수
 # def load_google_service_account_key():
 #     with open("lovemateV2.json", "r") as f:
@@ -844,6 +842,8 @@ if trigger == "multi_matching":
 # Streamlit UI
 # ---------------------------
 
+code = params.get("code", [None])[0]
+st.write("code")
 if not st.session_state["logged_in"] and not code:
     st.write("1")
     st.title("🔐 Google 로그인")
