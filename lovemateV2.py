@@ -860,6 +860,7 @@ if not st.session_state["logged_in"] and not code:
     st.stop()
 
 elif code and not st.session_state["logged_in"]:
+    st.write(st.session_state["logged_in"])
     st.write("2")
 
     # ✅ 코드로 토큰 요청
