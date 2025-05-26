@@ -842,7 +842,7 @@ if trigger == "multi_matching":
 # Streamlit UI
 # ---------------------------
 
-code = params.get("code", [None])[0]
+code = params.get("code", [None])
 st.write(code)
 if not st.session_state["logged_in"] and not code:
     st.write("1")
