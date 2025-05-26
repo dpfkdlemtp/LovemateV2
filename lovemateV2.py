@@ -741,6 +741,7 @@ code = params.get("code", [None])
 
 # 🛡️ 로그인 화면 (Google OAuth 후 비밀번호 설정 포함)
 if not st.session_state.get("logged_in") and not code:
+    st.write("1")
     st.title("🔐 Google 로그인")
     query = urlencode({
         "client_id": CLIENT_ID,
@@ -755,6 +756,7 @@ if not st.session_state.get("logged_in") and not code:
     st.stop()
 
 elif code and not st.session_state.get("oauth_code_used", False):
+    st.write("2")
     st.session_state["oauth_code_used"] = True
     st.query_params.clear()
     # ✅ 코드로 토큰 요청
