@@ -165,7 +165,7 @@ def create_account_sheet():
         print(f"✅ 시트 '{sheet_name}'이 이미 존재합니다.")
     except gspread.exceptions.WorksheetNotFound:
         worksheet = sheet.add_worksheet(title=sheet_name, rows="100", cols="3")
-        worksheet.update("A1:C1", [["ID", "PW", "마지막 로그인 시간"]])
+        worksheet.update("A1:C1", [["이메일", "PW", "마지막 로그인 시간"]])
         print(f"🆕 시트 '{sheet_name}'이 새로 생성되었습니다.")
 
     return worksheet
@@ -177,13 +177,13 @@ def signup(new_id, new_pw):
 
     # ✅ 계정정보 시트가 비어있거나 헤더가 없는 경우 → 초기화
     if df_accounts.empty or "ID" not in df_accounts.columns:
-        ws_accounts.update("A1:C1", [["ID", "PW", "마지막 로그인 시간"]])
-        df_accounts = pd.DataFrame(columns=["ID", "PW", "마지막 로그인 시간"])
+        ws_accounts.update("A1:C1", [["이메일", "PW", "마지막 로그인 시간"]])
+        df_accounts = pd.DataFrame(columns=["이메일", "PW", "마지막 로그인 시간"])
         st.warning("⚠️ 계정정보 시트가 비어 있어 자동 초기화되었습니다. 다시 시도해주세요.")
         return False, "⚠️ 시트를 초기화했어요. 다시 회원가입을 시도해주세요."
 
     # ID 중복 체크
-    if new_id in df_accounts["ID"].values:
+    if new_id in df_accounts["이메일"].values:
         return False, "❌ 이미 존재하는 ID입니다."
 
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -196,13 +196,13 @@ def signup(new_id, new_pw):
     # 2. 메모 시트 추가
     new_memo_row = [new_id, "", now_str]
     if df_memo.empty:
-        ws_memo.update('A2', [["ID", "메모", "저장 시간"]])
+        ws_memo.update('A2', [["이메일", "메모", "저장 시간"]])
     ws_memo.append_row(new_memo_row)
 
     # 3. 로그인 기록 시트 추가
     new_log_row = [new_id, now_str]
     if df_log.empty:
-        ws_log.update('A2', [["ID", "로그인 시간"]])
+        ws_log.update('A2', [["이메일", "로그인 시간"]])
     ws_log.append_row(new_log_row)
 
     return True, "✅ 회원가입 완료!"
@@ -211,7 +211,7 @@ def login(user_id, user_pw):
     df_accounts, ws_accounts = connect_sheet("계정정보")
     df_log, ws_log = connect_sheet("로그인기록")
 
-    user = df_accounts[df_accounts["ID"] == user_id]
+    user = df_accounts[df_accounts["이메일"] == user_id]
     if not user.empty:
         try:
             decrypted_pw = decrypt_password(user.iloc[0]["PW"])
@@ -915,7 +915,7 @@ elif code and not st.session_state["logged_in"]:
                     st.session_state["logged_in"] = True
 
                     # ✅ 메모 시트 등록 여부 확인
-                    if user_email not in df_memo["ID"].values:
+                    if user_email not in df_memo["이메일"].values:
                         ws_memo.append_row([user_email, "", now])
 
                     # ✅ 로그인기록 시트 추가
@@ -1409,7 +1409,7 @@ else:
         def save_memo_to_sheet(user_id, memo_content):
             df_memo, ws_memo = connect_sheet("메모")
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            user_rows = df_memo[df_memo["ID"] == user_id]
+            user_rows = df_memo[df_memo["이메일"] == user_id]
 
             if not user_rows.empty:
                 row_idx = user_rows.index[0] + 2
@@ -1424,7 +1424,7 @@ else:
         # ✅ 메모 불러오기 함수
         def load_memo_from_sheet(user_id):
             df_memo, ws_memo = connect_sheet("메모")
-            user_rows = df_memo[df_memo["ID"] == user_id]
+            user_rows = df_memo[df_memo["이메일"] == user_id]
             if not user_rows.empty:
                 return user_rows.iloc[0]["메모"]
             else:
