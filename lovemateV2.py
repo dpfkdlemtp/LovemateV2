@@ -862,6 +862,7 @@ if not st.session_state["logged_in"] and not code:
 
 elif code and not st.session_state["logged_in"]:
     st.write("2")
+
     # ✅ 코드로 토큰 요청
     data = {
         "code": code,
@@ -870,18 +871,19 @@ elif code and not st.session_state["logged_in"]:
         "redirect_uri": REDIRECT_URI,
         "grant_type": "authorization_code"
     }
-    token_res = requests.post(TOKEN_ENDPOINT, data=data).json()
+
+    # 응답 그대로 저장
+    token_res = requests.post(TOKEN_ENDPOINT, data=data)
+
     try:
+        # ✅ JSON 응답 파싱
         token_data = token_res.json()
         st.write("🔄 token_res 응답:")
-        st.json(token_data)
-    except Exception as e:
-        st.error(f"❌ 응답 파싱 실패: {e}")
-        st.stop()
+        st.json(token_data)  # 👈 Streamlit에 JSON 출력
 
-    id_token = token_data.get("id_token")
-    access_token = token_data.get("access_token")
-    
+        id_token = token_data.get("id_token")
+        access_token = token_data.get("access_token")
+
     if id_token and access_token:
         st.write("3")
         req = google.auth.transport.requests.Request()
