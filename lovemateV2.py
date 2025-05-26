@@ -150,7 +150,7 @@ def signup(new_id, new_pw):
     df_accounts, ws_accounts = connect_sheet("계정정보")
     df_memo, ws_memo = connect_sheet("메모")
     df_log, ws_log = connect_sheet("로그인기록")
-
+    st.write("계정정보 시트 컬럼:", df_accounts.columns.tolist())
     # ID 중복 체크
     if new_id in df_accounts["ID"].values:
         return False, "❌ 이미 존재하는 ID입니다."
