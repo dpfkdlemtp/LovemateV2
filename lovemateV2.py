@@ -913,11 +913,15 @@ elif code and not st.session_state["logged_in"]:
                 user_row = df_accounts.loc[df_accounts["이메일"] == user_email].iloc[0]
                 if str(user_row.get("가입허용", "")).strip().upper() == "O":
                     st.session_state["logged_in"] = True
-                    st.sidebar.success(f"✅ {user_email} 님 로그인됨")
-                    if st.sidebar.button("🔓 로그아웃"):
-                        st.session_state.clear()
-                        st.query_params.clear()
-                        st.rerun()
+                    st.rerun()
+                    ############################# 시작 #########################################
+
+
+
+
+
+
+                    ############################## 끝 ################################################
                 else:
                     st.warning("⛔ 아직 관리자 승인 대기 중입니다. 가입 요청은 이미 등록되었습니다.")
                     st.stop()
@@ -929,11 +933,11 @@ elif code and not st.session_state["logged_in"]:
         st.error(f"❌ 응답 파싱 실패: {e}")
         st.stop()
 else:
-    # st.sidebar.success(f"✅ {st.session_state['user_id']} 님 로그인됨")
-    # if st.sidebar.button("🔓 로그아웃"):
-    #     st.session_state.clear()
-    #     st.query_params.clear()
-    #     st.rerun()
+    st.sidebar.success(f"✅ {st.session_state['user_id']} 님 로그인됨")
+    if st.sidebar.button("🔓 로그아웃"):
+        st.session_state.clear()
+        st.query_params.clear()
+        st.rerun()
     if "last_rerun_time" not in st.session_state:
         st.session_state["last_rerun_time"] = time.time()
 
