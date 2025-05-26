@@ -844,7 +844,6 @@ if trigger == "multi_matching":
 
 code = params.get("code", [None])
 if not st.session_state["logged_in"] and code == [None]:
-    st.write("1")
     st.title("🔐 Google 로그인")
     query = urlencode({
         "client_id": CLIENT_ID,
@@ -859,7 +858,7 @@ if not st.session_state["logged_in"] and code == [None]:
     st.stop()
 
 elif code and not st.session_state["logged_in"]:
-    st.write(st.session_state["logged_in"])
+    # st.write(st.session_state["logged_in"])
 
     # ✅ 코드로 토큰 요청
     data = {
@@ -872,12 +871,12 @@ elif code and not st.session_state["logged_in"]:
 
     # 응답 그대로 저장
     token_res = requests.post(TOKEN_ENDPOINT, data=data)
-    st.write(data)
-    st.write(token_res)
+    #st.write(data)
+    #st.write(token_res)
     try:
         # ✅ JSON 응답 파싱
         token_data = token_res.json()
-        st.write("🔄 token_res 응답:")
+        #st.write("🔄 token_res 응답:")
         st.json(token_data)  # 👈 Streamlit에 JSON 출력
         id_token = token_data.get("id_token")
         access_token = token_data.get("access_token")
