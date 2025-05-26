@@ -884,46 +884,52 @@ elif code and not st.session_state["logged_in"]:
         id_token = token_data.get("id_token")
         access_token = token_data.get("access_token")
 
-    if id_token and access_token:
-        st.write("3")
-        req = google.auth.transport.requests.Request()
-        id_info = google.oauth2.id_token.verify_oauth2_token(id_token, req, CLIENT_ID)
-        user_email = id_info.get("email")
-        user_name = id_info.get("name", user_email)
-        st.session_state["user_id"] = user_email
+        if id_token and access_token:
+            st.write("3")
+            req = google.auth.transport.requests.Request()
+            id_info = google.oauth2.id_token.verify_oauth2_token(id_token, req, CLIENT_ID)
+            user_email = id_info.get("email")
+            user_name = id_info.get("name", user_email)
+            st.session_state["user_id"] = user_email
 
-        # ✅ 계정정보 시트 연결 및 불러오기
-        df_accounts, ws_accounts = connect_sheet("가입허용")
-        if "가입허용" not in df_accounts.columns:
-            st.error("❌ [가입허용] 시트에 '가입허용' 컬럼이 없습니다. 관리자에게 문의해주세요.")
-            st.stop()
-        df_accounts.columns = [col.strip() for col in df_accounts.columns]
-
-        if "이메일" not in df_accounts.columns:
-            ws_accounts.update("A1:D1", [["이메일", "이름", "가입허용", "마지막 로그인 시간"]])
-            df_accounts = pd.DataFrame(columns=["이메일", "이름", "가입허용", "마지막 로그인 시간"])
-
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        if user_email not in df_accounts["이메일"].values:
-            ws_accounts.append_row([user_email, user_name, "", now])
-            st.warning("📬 관리자 승인이 필요합니다. 가입 요청이 기록되었습니다.")
-            st.stop()
-        else:
-            row_index = df_accounts.index[df_accounts["이메일"] == user_email][0] + 2
-            ws_accounts.update(f"D{row_index}", [[now]])
-
-            user_row = df_accounts.loc[df_accounts["이메일"] == user_email].iloc[0]
-            if str(user_row.get("가입허용", "")).strip().upper() == "O":
-                st.session_state["logged_in"] = True
-                st.sidebar.success(f"✅ {user_email} 님 로그인됨")
-                if st.sidebar.button("🔓 로그아웃"):
-                    st.session_state.clear()
-                    st.query_params.clear()
-                    st.rerun()
-            else:
-                st.warning("⛔ 아직 관리자 승인 대기 중입니다. 가입 요청은 이미 등록되었습니다.")
+            # ✅ 계정정보 시트 연결 및 불러오기
+            df_accounts, ws_accounts = connect_sheet("가입허용")
+            if "가입허용" not in df_accounts.columns:
+                st.error("❌ [가입허용] 시트에 '가입허용' 컬럼이 없습니다. 관리자에게 문의해주세요.")
                 st.stop()
+            df_accounts.columns = [col.strip() for col in df_accounts.columns]
+
+            if "이메일" not in df_accounts.columns:
+                ws_accounts.update("A1:D1", [["이메일", "이름", "가입허용", "마지막 로그인 시간"]])
+                df_accounts = pd.DataFrame(columns=["이메일", "이름", "가입허용", "마지막 로그인 시간"])
+
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            if user_email not in df_accounts["이메일"].values:
+                ws_accounts.append_row([user_email, user_name, "", now])
+                st.warning("📬 관리자 승인이 필요합니다. 가입 요청이 기록되었습니다.")
+                st.stop()
+            else:
+                row_index = df_accounts.index[df_accounts["이메일"] == user_email][0] + 2
+                ws_accounts.update(f"D{row_index}", [[now]])
+
+                user_row = df_accounts.loc[df_accounts["이메일"] == user_email].iloc[0]
+                if str(user_row.get("가입허용", "")).strip().upper() == "O":
+                    st.session_state["logged_in"] = True
+                    st.sidebar.success(f"✅ {user_email} 님 로그인됨")
+                    if st.sidebar.button("🔓 로그아웃"):
+                        st.session_state.clear()
+                        st.query_params.clear()
+                        st.rerun()
+                else:
+                    st.warning("⛔ 아직 관리자 승인 대기 중입니다. 가입 요청은 이미 등록되었습니다.")
+                    st.stop()
+        else:
+            st.error("❌ 로그인 인증코드가 유효하지 않거나 만료되었습니다. 다시 로그인해주세요.")
+            st.stop()
+    except Exception as e:
+        st.error(f"❌ 응답 파싱 실패: {e}")
+        st.stop()
 else:
     st.write("4")
     st.sidebar.success(f"✅ {st.session_state['user_id']} 님 로그인됨")
