@@ -164,6 +164,10 @@ if not st.session_state["logged_in"] and not code:
     st.stop()
 
 elif code and not st.session_state["logged_in"]:
+    if st.sidebar.button("🔓 로그아웃"):
+        st.session_state.clear()
+        st.query_params.clear()
+        st.rerun()
     # ✅ 코드로 토큰 요청
     data = {
         "code": code,
