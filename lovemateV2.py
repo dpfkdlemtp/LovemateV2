@@ -929,11 +929,11 @@ elif code and not st.session_state["logged_in"]:
         st.error(f"❌ 응답 파싱 실패: {e}")
         st.stop()
 else:
-    st.sidebar.success(f"✅ {st.session_state['user_id']} 님 로그인됨")
-    if st.sidebar.button("🔓 로그아웃"):
-        st.session_state.clear()
-        st.query_params.clear()
-        st.rerun()
+    # st.sidebar.success(f"✅ {st.session_state['user_id']} 님 로그인됨")
+    # if st.sidebar.button("🔓 로그아웃"):
+    #     st.session_state.clear()
+    #     st.query_params.clear()
+    #     st.rerun()
     if "last_rerun_time" not in st.session_state:
         st.session_state["last_rerun_time"] = time.time()
 
