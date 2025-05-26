@@ -172,6 +172,8 @@ def create_account_sheet():
 
 def signup(new_id, new_pw):
     df_accounts, ws_accounts = connect_sheet("계정정보")
+    df_memo, ws_memo = connect_sheet("메모")
+    df_log, ws_log = connect_sheet("로그인기록")
 
     # ✅ 계정정보 시트가 비어있거나 헤더가 없는 경우 → 초기화
     if df_accounts.empty or "ID" not in df_accounts.columns:
@@ -183,6 +185,9 @@ def signup(new_id, new_pw):
     # ID 중복 체크
     if new_id in df_accounts["ID"].values:
         return False, "❌ 이미 존재하는 ID입니다."
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    encrypted_pw = encrypt_password(new_pw)
 
     # 1. 계정정보 추가
     new_account_row = [new_id, encrypted_pw, now_str]
@@ -221,7 +226,6 @@ def login(user_id, user_pw):
 
                 # 로그인 기록 추가
                 try:
-                    df_log, ws_log = connect_sheet("로그인기록")
                     next_seq = len(df_log) + 1  # 현재 데이터 수 + 1
                     new_log_row = [next_seq, user_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S")]
                     ws_log.append_row(new_log_row)
