@@ -291,6 +291,9 @@ elif code and not st.session_state["logged_in"]:
 
         # ✅ 계정정보 시트 연결 및 불러오기
         df_accounts, ws_accounts = connect_sheet("가입허용")
+        if "가입허용" not in df_accounts.columns:
+            st.error("❌ [가입허용] 시트에 '가입허용' 컬럼이 없습니다. 관리자에게 문의해주세요.")
+            st.stop()
         df_accounts.columns = [col.strip() for col in df_accounts.columns]
 
         if "이메일" not in df_accounts.columns:
