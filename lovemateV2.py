@@ -755,12 +755,9 @@ if not st.session_state.get("logged_in") and not code:
     st.markdown(f"[🔑 Google 계정으로 로그인]({login_url})")
     st.stop()
 
-elif code and not st.session_state.get("oauth_code_used", False):
+elif code and not st.session_state["logged_in"]:
     st.write("2")
-    st.session_state["oauth_code_used"] = True
-    st.query_params.clear()
-    # ✅ 코드로 토큰 요청
-    st.write(code,CLIENT_ID,st.secrets["google"]["client_secret"],REDIRECT_URI)
+
     data = {
         "code": code,
         "client_id": CLIENT_ID,
@@ -768,6 +765,7 @@ elif code and not st.session_state.get("oauth_code_used", False):
         "redirect_uri": REDIRECT_URI,
         "grant_type": "authorization_code"
     }
+    
     token_res = requests.post(TOKEN_ENDPOINT, data=data).json()
     st.write("🔄 token_res 응답:", token_res)
 
