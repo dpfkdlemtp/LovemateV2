@@ -874,21 +874,13 @@ elif code and not st.session_state["logged_in"]:
 
     # 응답 그대로 저장
     token_res = requests.post(TOKEN_ENDPOINT, data=data)
-
+    st.write("2-2")
     try:
         # ✅ JSON 응답 파싱
         token_data = token_res.json()
         st.write("🔄 token_res 응답:")
         st.json(token_data)  # 👈 Streamlit에 JSON 출력
-
-        # ✅ 오류 체크 추가
-        if "error" in token_data:
-            st.error(f"❌ 토큰 요청 실패: {token_data.get('error')} - {token_data.get('error_description', '')}")
-            st.warning("🔄 인증 코드가 만료되었거나 잘못되었습니다. 다시 로그인해주세요.")
-            st.query_params.clear()  # 인증코드 삭제
-            st.rerun()  # 페이지 새로고침하여 처음부터 다시 시작
-            st.stop()
-
+        st.write("2-3")
         id_token = token_data.get("id_token")
         access_token = token_data.get("access_token")
 
