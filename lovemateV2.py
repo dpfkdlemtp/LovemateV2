@@ -28,77 +28,20 @@ import tempfile
 from datetime import datetime
 import inspect
 from streamlit_oauth import OAuth2Component
+import streamlit as st
+import google.auth.transport.requests
+import google.oauth2.id_token
+import requests
+import pandas as pd
+from datetime import datetime
+from urllib.parse import urlencode
 
+params = st.query_params
+trigger = params.get("trigger", [None])[0]
 
 st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "메모장", "프로필카드 생성"])
-
-
-client_id = st.secrets["google"]["client_id"]
-client_secret = st.secrets["google"]["client_secret"]
-
-oauth2 = OAuth2Component(
-    client_id=client_id,
-    client_secret=client_secret,
-    auth_url="https://accounts.google.com/o/oauth2/auth",
-    token_url="https://oauth2.googleapis.com/token",
-    redirect_uri="https://lovematev2.streamlit.app",
-)
-
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
-if "user_id" not in st.session_state:
-    st.session_state["user_id"] = ""
-
-if not st.session_state["logged_in"]:
-    st.title("🔐 Google 로그인")
-
-    result = oauth2.authorize_button(
-        name="Google 계정으로 로그인",
-        icon="🔐",
-        scopes=["openid", "email", "profile"],
-        authorization_params={"access_type": "offline"}
-    )
-
-    if result and "userinfo" in result:
-        user_email = result["userinfo"]["email"].strip()
-        st.session_state["user_id"] = user_email
-
-        # ✅ 계정정보 시트 연결 및 불러오기
-        df_accounts, ws_accounts = connect_sheet("계정정보")
-        df_accounts.columns = [col.strip() for col in df_accounts.columns]
-
-        # ✅ 시트 헤더가 없을 경우 초기화
-        if "이메일" not in df_accounts.columns:
-            ws_accounts.update("A1:C1", [["이메일", "마지막 로그인 시간", "가입허용"]])
-            df_accounts = pd.DataFrame(columns=["이메일", "마지막 로그인 시간", "가입허용"])
-
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        if user_email not in df_accounts["이메일"].values:
-            # ✅ 신규 사용자 등록
-            ws_accounts.append_row([user_email, now, ""])
-            st.warning("📬 관리자 승인이 필요합니다. 가입 요청이 기록되었습니다.")
-            st.stop()
-        else:
-            # ✅ 기존 사용자 → 로그인 허용 여부 확인 + 시간 업데이트
-            row_index = df_accounts.index[df_accounts["이메일"] == user_email][0] + 2  # 헤더 포함
-            ws_accounts.update(f"B{row_index}", [[now]])  # B열 = 마지막 로그인 시간
-
-            user_row = df_accounts.loc[df_accounts["이메일"] == user_email].iloc[0]
-            if str(user_row.get("가입허용", "")).strip().upper() == "O":
-                st.session_state["logged_in"] = True
-                st.success(f"✅ 로그인 성공: {user_email} 님")
-                st.rerun()
-            else:
-                st.warning("⛔ 아직 관리자 승인 대기 중입니다. 가입 요청은 이미 등록되었습니다.")
-                st.stop()
-else:
-    st.sidebar.markdown(f"👤 **{st.session_state['user_id']} 님**")
-    if st.sidebar.button("🔓 로그아웃"):
-        st.session_state.clear()
-        st.rerun()
 
 # # ✅ 세션 기본 설정 (로그인 생략용 테스트)
 # if "logged_in" not in st.session_state:
@@ -112,7 +55,9 @@ else:
 # # if "user_id" not in st.session_state:
 # #     st.session_state["user_id"] = ""
 
-
+#Streamlit App 전용
+def load_google_service_account_key():
+    return st.secrets["gcp"]
 
 # Streamlit 콘솔 로그 출력용 (브라우저 개발자 도구에서 확인 가능)
 def js_console_log(message):
@@ -120,8 +65,6 @@ def js_console_log(message):
         f"<script>console.log('[Streamlit JS] {message}');</script>",
         unsafe_allow_html=True
     )
-
-
 
 # 🔒 암복호화용 키 로딩 (키정보 시트 B1)
 @st.cache_resource(show_spinner=False)
@@ -193,74 +136,88 @@ def write_log(member_id: str = "", message: str = ""):
     except Exception as e:
         print(f"[로그 기록 실패] {e}")
 
-def signup(new_id, new_pw):
-    df_accounts, ws_accounts = connect_sheet("계정정보")
-    df_memo, ws_memo = connect_sheet("메모")
-    df_log, ws_log = connect_sheet("로그인기록")
+CLIENT_ID = st.secrets["google"]["client_id"]
+REDIRECT_URI = "https://lovematev2.streamlit.app"
+AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
+TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
+USERINFO_ENDPOINT = "https://openidconnect.googleapis.com/v1/userinfo"
 
-    # ID 중복 체크
-    if new_id in df_accounts["ID"].values:
-        return False, "❌ 이미 존재하는 ID입니다."
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+if "user_id" not in st.session_state:
+    st.session_state["user_id"] = ""
 
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    encrypted_pw = encrypt_password(new_pw)
+code = params.get("code", [None])[0]
 
-    # 1. 계정정보 추가
-    new_account_row = [new_id, encrypted_pw, now_str]
-    ws_accounts.append_row(new_account_row)
+if not st.session_state["logged_in"] and not code:
+    st.title("🔐 Google 로그인")
+    query = urlencode({
+        "client_id": CLIENT_ID,
+        "redirect_uri": REDIRECT_URI,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "consent"
+    })
+    login_url = f"{AUTHORIZATION_ENDPOINT}?{query}"
+    st.markdown(f"[🔑 Google 계정으로 로그인]({login_url})")
+    st.stop()
 
-    # 2. 메모 시트 추가
-    new_memo_row = [new_id, "", now_str]
-    if df_memo.empty:
-        ws_memo.update('A2', [["ID", "메모", "저장 시간"]])
-    ws_memo.append_row(new_memo_row)
+elif code and not st.session_state["logged_in"]:
+    # ✅ 코드로 토큰 요청
+    data = {
+        "code": code,
+        "client_id": CLIENT_ID,
+        "client_secret": st.secrets["google"]["client_secret"],
+        "redirect_uri": REDIRECT_URI,
+        "grant_type": "authorization_code"
+    }
+    token_res = requests.post(TOKEN_ENDPOINT, data=data).json()
+    id_token = token_res.get("id_token")
+    access_token = token_res.get("access_token")
 
-    # 3. 로그인 기록 시트 추가
-    new_log_row = [new_id, now_str]
-    if df_log.empty:
-        ws_log.update('A2', [["ID", "로그인 시간"]])
-    ws_log.append_row(new_log_row)
+    if id_token and access_token:
+        req = google.auth.transport.requests.Request()
+        id_info = google.oauth2.id_token.verify_oauth2_token(id_token, req, CLIENT_ID)
+        user_email = id_info.get("email")
+        user_name = id_info.get("name", user_email)
+        st.session_state["user_id"] = user_email
 
-    return True, "✅ 회원가입 완료!"
+        # ✅ 계정정보 시트 연결 및 불러오기
+        df_accounts, ws_accounts = connect_sheet("계정정보")
+        df_accounts.columns = [col.strip() for col in df_accounts.columns]
 
+        if "이메일" not in df_accounts.columns:
+            ws_accounts.update("A1:D1", [["이메일", "이름", "가입허용", "마지막 로그인 시간"]])
+            df_accounts = pd.DataFrame(columns=["이메일", "이름", "가입허용", "마지막 로그인 시간"])
 
-# ✅ 로그인 함수
-def login(user_id, user_pw):
-    df_accounts, ws_accounts = connect_sheet("계정정보")
-    df_log, ws_log = connect_sheet("로그인기록")
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    user = df_accounts[df_accounts["ID"] == user_id]
-    if not user.empty:
-        try:
-            decrypted_pw = decrypt_password(user.iloc[0]["PW"])
-            if decrypted_pw == user_pw:
-                now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if user_email not in df_accounts["이메일"].values:
+            ws_accounts.append_row([user_email, user_name, "", now])
+            st.warning("📬 관리자 승인이 필요합니다. 가입 요청이 기록되었습니다.")
+            st.stop()
+        else:
+            row_index = df_accounts.index[df_accounts["이메일"] == user_email][0] + 2
+            ws_accounts.update(f"D{row_index}", [[now]])
 
-                # 마지막 로그인 시간 업데이트
-                row_idx = user.index[0] + 2
-                ws_accounts.update_cell(row_idx, 3, now_str)
-
-                # 로그인 기록 추가
-                try:
-                    df_log, ws_log = connect_sheet("로그인기록")
-                    next_seq = len(df_log) + 1  # 현재 데이터 수 + 1
-                    new_log_row = [next_seq, user_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S")]
-                    ws_log.append_row(new_log_row)
-                except Exception as e:
-                    st.error(f"로그인 기록 저장 실패: {e}")
-                    write_log("",f"로그인 기록 저장 실패: {e}")
-
-                return True
+            user_row = df_accounts.loc[df_accounts["이메일"] == user_email].iloc[0]
+            if str(user_row.get("가입허용", "")).strip().upper() == "O":
+                st.session_state["logged_in"] = True
+                st.sidebar.success(f"✅ {user_email} 님 로그인됨")
+                if st.sidebar.button("🔓 로그아웃"):
+                    st.session_state.clear()
+                    st.query_params.clear()
+                    st.rerun()
             else:
-                return False
-        except Exception:
-            return False
-    else:
-        return False
-
-#Streamlit App 전용
-def load_google_service_account_key():
-    return st.secrets["gcp"]
+                st.warning("⛔ 아직 관리자 승인 대기 중입니다. 가입 요청은 이미 등록되었습니다.")
+                st.stop()
+else:
+    st.sidebar.success(f"✅ {st.session_state['user_id']} 님 로그인됨")
+    if st.sidebar.button("🔓 로그아웃"):
+        st.session_state.clear()
+        st.query_params.clear()
+        st.rerun()
 
 # # ✅ Google 서비스 계정 키 로딩 함수
 # def load_google_service_account_key():
@@ -840,7 +797,8 @@ def run_multi_matching():
 
 
 # URL 쿼리를 통해 mulit_bulk_matching 트리거
-if st.query_params.get("trigger") == ["multi_matching"]:
+if trigger == "multi_matching":
+    # 실행 코드
     with st.spinner("외부 트리거에 의해 multi matching 실행 중..."):
         run_multi_matching()
         write_log("","✅ 외부 트리거: 매칭 완료됨")
