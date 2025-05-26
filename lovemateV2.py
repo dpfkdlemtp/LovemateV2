@@ -846,7 +846,6 @@ if trigger == "multi_matching":
 
 if not st.session_state["logged_in"] and not code:
     st.write("1")
-    st.session_state.clear()
     st.title("🔐 Google 로그인")
     query = urlencode({
         "client_id": CLIENT_ID,
@@ -874,6 +873,8 @@ elif code and not st.session_state["logged_in"]:
 
     # 응답 그대로 저장
     token_res = requests.post(TOKEN_ENDPOINT, data=data)
+    st.write(data)
+    st.write(token_res)
     st.write("2-2")
     try:
         # ✅ JSON 응답 파싱
