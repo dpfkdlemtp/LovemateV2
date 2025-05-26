@@ -147,7 +147,7 @@ if "logged_in" not in st.session_state:
 if "user_id" not in st.session_state:
     st.session_state["user_id"] = ""
 
-code = params.get("code", [None])[0]
+code = params.get("code", [None])
 
 if not st.session_state["logged_in"] and not code:
     st.title("🔐 Google 로그인")
@@ -184,7 +184,7 @@ elif code and not st.session_state["logged_in"]:
         st.session_state["user_id"] = user_email
 
         # ✅ 계정정보 시트 연결 및 불러오기
-        df_accounts, ws_accounts = connect_sheet("계정정보")
+        df_accounts, ws_accounts = connect_sheet("가입허용")
         df_accounts.columns = [col.strip() for col in df_accounts.columns]
 
         if "이메일" not in df_accounts.columns:
@@ -879,7 +879,7 @@ elif code and not st.session_state.get("oauth_code_used", False):
     st.session_state["user_id"] = user_email
     st.query_params.clear()  # ✅ ?code= 제거하여 재요청 방지
 
-    df_accounts, ws_accounts = connect_sheet("계정정보")
+    df_accounts, ws_accounts = connect_sheet("가입허용")
     df_accounts.columns = [col.strip() for col in df_accounts.columns]
     st.write("📄 df_accounts.columns", df_accounts.columns.tolist())
     st.write("🔢 계정 시트 행 수:", len(df_accounts))
