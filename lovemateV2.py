@@ -843,7 +843,7 @@ if trigger == "multi_matching":
 # ---------------------------
 
 code = params.get("code", [None])[0]
-st.write("code")
+st.write(code)
 if not st.session_state["logged_in"] and not code:
     st.write("1")
     st.title("🔐 Google 로그인")
