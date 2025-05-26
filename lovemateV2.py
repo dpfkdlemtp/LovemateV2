@@ -147,105 +147,6 @@ if "logged_in" not in st.session_state:
 if "user_id" not in st.session_state:
     st.session_state["user_id"] = ""
 
-code = params.get("code", [None])
-
-if not st.session_state["logged_in"] and not code:
-    st.title("🔐 Google 로그인")
-    query = urlencode({
-        "client_id": CLIENT_ID,
-        "redirect_uri": REDIRECT_URI,
-        "response_type": "code",
-        "scope": "openid email profile",
-        "access_type": "offline",
-        "prompt": "consent"
-    })
-    login_url = f"{AUTHORIZATION_ENDPOINT}?{query}"
-    st.markdown(f"[🔑 Google 계정으로 로그인]({login_url})")
-    st.stop()
-
-elif code and not st.session_state["logged_in"]:
-    if st.sidebar.button("🔓 로그아웃"):
-        st.session_state.clear()
-        st.query_params.clear()
-        st.rerun()
-    # ✅ 코드로 토큰 요청
-    data = {
-        "code": code,
-        "client_id": CLIENT_ID,
-        "client_secret": st.secrets["google"]["client_secret"],
-        "redirect_uri": REDIRECT_URI,
-        "grant_type": "authorization_code"
-    }
-    token_res = requests.post(TOKEN_ENDPOINT, data=data).json()
-    id_token = token_res.get("id_token")
-    access_token = token_res.get("access_token")
-
-    if id_token and access_token:
-        req = google.auth.transport.requests.Request()
-        id_info = google.oauth2.id_token.verify_oauth2_token(id_token, req, CLIENT_ID)
-        user_email = id_info.get("email")
-        user_name = id_info.get("name", user_email)
-        st.session_state["user_id"] = user_email
-
-        # ✅ 계정정보 시트 연결 및 불러오기
-        df_accounts, ws_accounts = connect_sheet("가입허용")
-        df_accounts.columns = [col.strip() for col in df_accounts.columns]
-
-        if "이메일" not in df_accounts.columns:
-            ws_accounts.update("A1:D1", [["이메일", "이름", "가입허용", "마지막 로그인 시간"]])
-            df_accounts = pd.DataFrame(columns=["이메일", "이름", "가입허용", "마지막 로그인 시간"])
-
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        if user_email not in df_accounts["이메일"].values:
-            ws_accounts.append_row([user_email, user_name, "", now])
-            st.warning("📬 관리자 승인이 필요합니다. 가입 요청이 기록되었습니다.")
-            st.stop()
-        else:
-            row_index = df_accounts.index[df_accounts["이메일"] == user_email][0] + 2
-            ws_accounts.update(f"D{row_index}", [[now]])
-
-            user_row = df_accounts.loc[df_accounts["이메일"] == user_email].iloc[0]
-            if str(user_row.get("가입허용", "")).strip().upper() == "O":
-                # 비밀번호 열 존재 여부 확인 및 설정 여부 체크
-                if "비밀번호" not in df_accounts.columns:
-                    ws_accounts.update("E1", [["비밀번호"]])
-                    df_accounts["비밀번호"] = ""
-
-                if not user_row.get("비밀번호", ""):
-                    with st.form("pw_setup_form"):
-                        new_pw = st.text_input("비밀번호를 설정해주세요", type="password")
-                        submitted = st.form_submit_button("비밀번호 설정 완료")
-
-                        if submitted and new_pw:
-                            # 🔐 비밀번호 암호화
-                            key = load_secret_key()
-                            fernet = Fernet(key)
-                            enc_pw = fernet.encrypt(new_pw.encode()).decode()
-                            ws_accounts.update_cell(row_index, 5, enc_pw)
-                            st.success("✅ 비밀번호가 설정되었습니다. 다시 로그인해주세요.")
-                            st.stop()
-                        else:
-                            st.warning("비밀번호를 입력해주세요.")
-                        st.stop()
-
-                # 이미 비밀번호 설정된 경우 로그인 처리
-                st.session_state["logged_in"] = True
-                st.sidebar.success(f"✅ {user_email} 님 로그인됨")
-                if st.sidebar.button("🔓 로그아웃"):
-                    st.session_state.clear()
-                    st.query_params.clear()
-                    st.rerun()
-            else:
-                st.warning("⛔ 아직 관리자 승인 대기 중입니다. 가입 요청은 이미 등록되었습니다.")
-                st.stop()
-else:
-    st.sidebar.success(f"✅ {st.session_state['user_id']} 님 로그인됨")
-    if st.sidebar.button("🔓 로그아웃"):
-        st.session_state.clear()
-        st.query_params.clear()
-        st.rerun()
-
 # # ✅ Google 서비스 계정 키 로딩 함수
 # def load_google_service_account_key():
 #     with open("lovemateV2.json", "r") as f:
@@ -836,9 +737,10 @@ if trigger == "multi_matching":
 # Streamlit UI
 # ---------------------------
 # -------------------------------------------
+code = params.get("code", [None])
+
 # 🛡️ 로그인 화면 (Google OAuth 후 비밀번호 설정 포함)
 if not st.session_state.get("logged_in") and not code:
-    st.write("1")
     st.title("🔐 Google 로그인")
     query = urlencode({
         "client_id": CLIENT_ID,
@@ -855,7 +757,6 @@ if not st.session_state.get("logged_in") and not code:
 elif code and not st.session_state.get("oauth_code_used", False):
     st.session_state["oauth_code_used"] = True
     st.query_params.clear()
-    st.write("2")
     # ✅ 코드로 토큰 요청
     st.write(code,CLIENT_ID,st.secrets["google"]["client_secret"],REDIRECT_URI)
     data = {
