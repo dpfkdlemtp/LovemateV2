@@ -255,6 +255,7 @@ if "user_id" not in st.session_state:
 code = params.get("code", [None])[0]
 
 if not st.session_state["logged_in"] and not code:
+    st.session_state.clear()
     st.title("🔐 Google 로그인")
     query = urlencode({
         "client_id": CLIENT_ID,
