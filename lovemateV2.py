@@ -206,8 +206,6 @@ def signup(new_id, new_pw):
     ws_log.append_row(new_log_row)
 
     return True, "✅ 회원가입 완료!"
-
-
 # ✅ 로그인 함수
 def login(user_id, user_pw):
     df_accounts, ws_accounts = connect_sheet("계정정보")
@@ -889,8 +887,13 @@ elif code and not st.session_state["logged_in"]:
             user_name = id_info.get("name", user_email)
             st.session_state["user_id"] = user_email
 
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
             # ✅ 계정정보 시트 연결 및 불러오기
             df_accounts, ws_accounts = connect_sheet("가입허용")
+            df_memo, ws_memo = connect_sheet("메모")
+            df_log, ws_log = connect_sheet("로그인기록")
+
             if "가입허용" not in df_accounts.columns:
                 st.error("❌ [가입허용] 시트에 '가입허용' 컬럼이 없습니다. 관리자에게 문의해주세요.")
                 st.stop()
@@ -899,8 +902,6 @@ elif code and not st.session_state["logged_in"]:
             if "이메일" not in df_accounts.columns:
                 ws_accounts.update("A1:D1", [["이메일", "이름", "가입허용", "마지막 로그인 시간"]])
                 df_accounts = pd.DataFrame(columns=["이메일", "이름", "가입허용", "마지막 로그인 시간"])
-
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             if user_email not in df_accounts["이메일"].values:
                 ws_accounts.append_row([user_email, user_name, "", now])
@@ -913,6 +914,21 @@ elif code and not st.session_state["logged_in"]:
                 user_row = df_accounts.loc[df_accounts["이메일"] == user_email].iloc[0]
                 if str(user_row.get("가입허용", "")).strip().upper() == "O":
                     st.session_state["logged_in"] = True
+
+                    # ✅ 메모 시트 등록 여부 확인
+                    if user_email not in df_memo["ID"].values:
+                        ws_memo.append_row([user_email, "", now])
+
+                    # ✅ 로그인기록 시트 추가
+                    try:
+                        next_seq = len(df_log) + 1
+                        ws_log.append_row([next_seq, user_email, now])
+                    except Exception as e:
+                        st.error(f"로그인 기록 저장 실패: {e}")
+                        write_log(user_email, f"로그인 기록 저장 실패: {e}")
+
+
+
                     st.rerun()
                     ############################# 시작 #########################################
 
