@@ -146,7 +146,32 @@ def write_log(member_id: str = "", message: str = ""):
     except Exception as e:
         print(f"[로그 기록 실패] {e}")
 
+def create_account_sheet():
+    # 구글 인증 범위
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+
+    # 서비스 계정 키 로딩 (Streamlit에서는 st.secrets 사용)
+    key_dict = st.secrets["gcp"]  # 또는 JSON 파일에서 로딩: json.load(open("your-service-key.json"))
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, scope)
+    client = gspread.authorize(creds)
+
+    # 📌 스프레드시트 열기 (관리자용 시트 URL 사용)
+    sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1XwEk_TifWuCkOjjUuJ0kMFYy0dKxV46XvQ_rgts2kL8/edit")
+
+    # ✅ 시트가 이미 존재하는지 확인하고 없으면 생성
+    sheet_name = "계정정보"
+    try:
+        worksheet = sheet.worksheet(sheet_name)
+        print(f"✅ 시트 '{sheet_name}'이 이미 존재합니다.")
+    except gspread.exceptions.WorksheetNotFound:
+        worksheet = sheet.add_worksheet(title=sheet_name, rows="100", cols="3")
+        worksheet.update("A1:C1", [["ID", "PW", "마지막 로그인 시간"]])
+        print(f"🆕 시트 '{sheet_name}'이 새로 생성되었습니다.")
+
+    return worksheet
+
 def signup(new_id, new_pw):
+    create_account_sheet()
     df_accounts, ws_accounts = connect_sheet("계정정보")
     df_memo, ws_memo = connect_sheet("메모")
     df_log, ws_log = connect_sheet("로그인기록")
