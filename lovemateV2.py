@@ -875,7 +875,6 @@ elif code and not st.session_state["logged_in"]:
         # ✅ JSON 응답 파싱
         token_data = token_res.json()
         #st.write("🔄 token_res 응답:")
-        st.json(token_data)  # 👈 Streamlit에 JSON 출력
         id_token = token_data.get("id_token")
         access_token = token_data.get("access_token")
 
