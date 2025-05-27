@@ -38,12 +38,11 @@ from urllib.parse import urlencode
 
 params = st.query_params
 trigger = params.get("trigger", [None])[0]
+token = params.get("token", [None])[0]
 
 st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "메모장", "프로필카드 생성"])
-st.write("trigger:")
-st.write(trigger)
 # # ✅ 세션 기본 설정 (로그인 생략용 테스트)
 # if "logged_in" not in st.session_state:
 #     # 테스트용 자동 로그인 활성화
@@ -146,6 +145,8 @@ def write_log(member_id: str = "", message: str = ""):
         ws.append_row(row)
     except Exception as e:
         print(f"[로그 기록 실패] {e}")
+        
+write_log(member_id="", message=f"📩 트리거 요청 감지: trigger={trigger}, token={token}")
 
 def create_account_sheet():
     # 구글 인증 범위
