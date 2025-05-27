@@ -3,7 +3,7 @@
 #run_multi_matching 함수 시트 변경 필요
 #tab3의 시트 도 변경 필요
 
-
+from urllib.parse import urlparse, parse_qs
 import urllib
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -36,9 +36,22 @@ import pandas as pd
 from datetime import datetime
 from urllib.parse import urlencode
 
-params = st.query_params
-trigger = params.get("trigger", [None])[0]
-token = params.get("token", [None])[0]
+# 내부 맨 위
+def extract_params_from_referer():
+    import os
+    import streamlit.web.server.websocket_headers as ws_headers
+    try:
+        referer = ws_headers._get_websocket_headers()["referer"]
+        parsed_url = urlparse(referer)
+        query = parse_qs(parsed_url.query)
+        return query
+    except:
+        return {}
+
+# 기존의 st.query_params 대체
+params = extract_params_from_referer()
+trigger = params.get("trigger", [None])
+token = params.get("token", [None])
 
 st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
 
@@ -145,7 +158,7 @@ def write_log(member_id: str = "", message: str = ""):
         ws.append_row(row)
     except Exception as e:
         print(f"[로그 기록 실패] {e}")
-        
+
 write_log(member_id="", message=f"📩 트리거 요청 감지: trigger={trigger}, token={token}")
 
 def create_account_sheet():
@@ -859,7 +872,7 @@ def run_multi_matching():
 # URL 쿼리를 통해 mulit_bulk_matching 트리거
 if trigger == "multi_matching":
     # ✅ 요청 출처 검증을 위한 토큰 검사
-    token = params.get("token", [None])[0]
+    token = params.get("token", [None])
     if token != st.secrets.get("apps_script_token"):  # ✅ secrets.toml에 미리 저장된 토큰
         st.error("⛔ 요청 권한 없음")
         write_log("","❌ 외부 트리거 거부됨: 유효하지 않은 토큰")
