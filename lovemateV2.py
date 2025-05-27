@@ -560,6 +560,33 @@ def generate_profile_card_from_sheet(member_id: str):
     )
 
     write_log(member_id, f"[디버그] ✅ 업로드 완료: 파일 ID {uploaded_id}")
+
+    # ✅ 프로필카드 링크 생성
+    pdf_url = f"https://drive.google.com/file/d/{uploaded_id}/view?usp=sharing"
+
+    # ✅ 프로필 시트의 AY열에 링크 업데이트
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        key_dict = load_google_service_account_key()
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, scope)
+        client = gspread.authorize(creds)
+
+        sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1jnZqqmZB8zWau6CHqxm-L9fxlXDaWxOaJm6uDcE6WN0/edit")
+        worksheet = sheet.worksheet("프로필")
+        all_values = worksheet.get_all_values()
+        headers = all_values[1]  # 2행이 헤더
+        data_rows = all_values[2:]  # 3행부터 데이터
+
+        for idx, row in enumerate(data_rows):
+            if str(row[headers.index("회원 ID")]).strip() == str(member_id).strip():
+                row_num = idx + 3  # 실제 시트 행 번호
+                col_num = headers.index("프로필카드") + 1 if "프로필카드" in headers else 51  # AY열 기본값
+                worksheet.update_cell(row_num, col_num, pdf_url)
+                write_log(member_id, f"✅ 프로필카드 링크 저장 완료: {pdf_url}")
+                break
+    except Exception as e:
+        write_log(member_id, f"❌ 프로필카드 링크 저장 실패: {e}")
+
     return uploaded_id
 
 # ---------------------------
