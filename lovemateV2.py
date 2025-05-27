@@ -856,7 +856,13 @@ def run_multi_matching():
 
 # URL 쿼리를 통해 mulit_bulk_matching 트리거
 if trigger == "multi_matching":
-    # 실행 코드
+    # ✅ 요청 출처 검증을 위한 토큰 검사
+    token = params.get("token", [None])[0]
+    if token != st.secrets.get("apps_script_token"):  # ✅ secrets.toml에 미리 저장된 토큰
+        st.error("⛔ 요청 권한 없음")
+        write_log("","❌ 외부 트리거 거부됨: 유효하지 않은 토큰")
+        st.stop()
+
     with st.spinner("외부 트리거에 의해 multi matching 실행 중..."):
         run_multi_matching()
         write_log("","✅ 외부 트리거: 매칭 완료됨")
