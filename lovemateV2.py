@@ -49,6 +49,7 @@ def extract_params_from_headers():
         return {}
 
 params = extract_params_from_headers()
+query_params = st.experimental_get_query_params()
 trigger = st.context.headers.get("trigger", None)
 token = st.context.headers.get("token", None)
 
@@ -158,6 +159,7 @@ def write_log(member_id: str = "", message: str = ""):
 
 write_log("", f"🛰️ 요청 도달 확인 로그")
 write_log("", f"📩 트리거 요청 감지 (헤더 기반): trigger={trigger}, token={token}")
+write_log("",query_params)
 print("✅ Streamlit 앱 실행 시작")
 
 def create_account_sheet():
