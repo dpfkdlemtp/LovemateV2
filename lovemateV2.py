@@ -156,7 +156,10 @@ def write_log(member_id: str = "", message: str = ""):
     except Exception as e:
         print(f"[로그 기록 실패] {e}")
 
-write_log(member_id="", message=f"📩 트리거 요청 감지: trigger={trigger}, token={token}")
+now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+write_log("", f"🛰️ 요청 도달 확인 로그: {now}")
+write_log("", f"📩 트리거 요청 감지 (헤더 기반): trigger={trigger}, token={token}")
+print("✅ Streamlit 앱 실행 시작")
 
 def create_account_sheet():
     # 구글 인증 범위
