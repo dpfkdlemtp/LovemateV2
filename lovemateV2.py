@@ -35,25 +35,22 @@ import requests
 import pandas as pd
 from datetime import datetime
 from urllib.parse import urlencode
+from urllib.parse import urlparse, parse_qs
 
-# 내부 맨 위
-def extract_params_from_referer():
-    import os
-    import streamlit.web.server.websocket_headers as ws_headers
+st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
+
+# query 파라미터 수동 추출 (Apps Script 같은 환경에서도 동작)
+def extract_params_from_headers():
     try:
-        referer = ws_headers._get_websocket_headers()["referer"]
-        parsed_url = urlparse(referer)
-        query = parse_qs(parsed_url.query)
-        return query
+        referer = st.context.headers.get("referer", "")
+        parsed = urlparse(referer)
+        return parse_qs(parsed.query)
     except:
         return {}
 
-# 기존의 st.query_params 대체
-params = extract_params_from_referer()
-trigger = params.get("trigger", [None])
-token = params.get("token", [None])
-
-st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
+params = extract_params_from_headers()
+trigger = params.get("trigger", [None])[0]
+token = params.get("token", [None])[0]
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "메모장", "프로필카드 생성"])
 # # ✅ 세션 기본 설정 (로그인 생략용 테스트)
