@@ -49,8 +49,8 @@ def extract_params_from_headers():
         return {}
 
 params = extract_params_from_headers()
-trigger = params.get("trigger", [None])[0]
-token = params.get("token", [None])[0]
+trigger = st.context.headers.get("trigger", None)
+token = st.context.headers.get("token", None)
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "메모장", "프로필카드 생성"])
 # # ✅ 세션 기본 설정 (로그인 생략용 테스트)
