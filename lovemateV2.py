@@ -1,3 +1,4 @@
+print("--- 앱 실행 최상단 로그 (콘솔 전용) ---") # 이것도 추가해보세요.
 #streamlit run lovemateV2.py
 
 #run_multi_matching 함수 시트 변경 필요
