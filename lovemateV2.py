@@ -40,7 +40,7 @@ from urllib.parse import urlparse, parse_qs
 
 st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
 
-params = st.experimental_get_query_params()
+params = dict(st.query_params)
 trigger = params.get("trigger", [None])[0]
 token = params.get("token", [None])[0]
 
