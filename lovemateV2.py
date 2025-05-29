@@ -41,8 +41,8 @@ from urllib.parse import urlparse, parse_qs
 st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
 
 params = dict(st.query_params)
-trigger = params.get("trigger", [None])[0]
-token = params.get("token", [None])[0]
+trigger = params.get("trigger", [None])
+token = params.get("token", [None])
 
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "메모장", "프로필카드 생성"])
