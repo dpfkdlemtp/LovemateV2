@@ -922,7 +922,8 @@ if trigger == "multi_matching":
         run_multi_matching()
         write_log("","✅ 외부 트리거: 매칭 완료됨")
         st.stop()
-elif trigger == "watermark":
+        
+if trigger == "watermark":
     # ✅ 요청 출처 검증을 위한 토큰 검사
     if token != st.secrets.get("apps_script_token"):  # ✅ secrets.toml에 미리 저장된 토큰
         st.error("⛔ 요청 권한 없음")
