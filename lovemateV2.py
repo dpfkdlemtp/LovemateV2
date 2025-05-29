@@ -40,12 +40,10 @@ from urllib.parse import urlparse, parse_qs
 
 st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
 
-# URL 쿼리 파라미터 안전하게 추출
-query_params = st.query_params
+params = st.experimental_get_query_params()
+trigger = params.get("trigger", [None])[0]
+token = params.get("token", [None])[0]
 
-# 값이 있는지 확인
-trigger = query_params.get("trigger", [None])[0]
-token = query_params.get("token", [None])[0]
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "메모장", "프로필카드 생성"])
 # # ✅ 세션 기본 설정 (로그인 생략용 테스트)
