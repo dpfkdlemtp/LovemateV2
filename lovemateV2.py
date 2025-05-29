@@ -150,7 +150,7 @@ def write_log(member_id: str = "", message: str = ""):
         print(f"[로그 기록 실패] {e}")
 
 write_log("", f"📩 트리거 요청 감지 (헤더 기반): trigger={trigger}, token={token}")
-write_log("", "1"+str(trigger=="multi_matching"))
+write_log("", str(trigger=="multi_matching"))
 
 def create_account_sheet():
     # 구글 인증 범위
@@ -862,6 +862,7 @@ def run_multi_matching():
 
 # URL 쿼리를 통해 mulit_bulk_matching 트리거
 if trigger == "multi_matching":
+    write_log("", "trigger1")
     if token != "TAEHA":  # ✅ secrets.toml에 미리 저장된 토큰
         write_log("","trigger2")
         st.error("⛔ 요청 권한 없음")
