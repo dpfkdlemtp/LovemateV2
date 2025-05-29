@@ -860,9 +860,9 @@ def run_multi_matching():
 
 
 # URL 쿼리를 통해 mulit_bulk_matching 트리거
-write_log(trigger=="multi_matching")
-write_log(token==st.secrets.get("apps_script_token"))
-write_log(st.secrets.get("apps_script_token"))
+write_log("", trigger=="multi_matching")
+write_log("", token==st.secrets.get("apps_script_token"))
+write_log("", st.secrets.get("apps_script_token"))
 if trigger == "multi_matching":
     write_log("","trigger1")
     # ✅ 요청 출처 검증을 위한 토큰 검사
