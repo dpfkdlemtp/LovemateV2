@@ -132,7 +132,7 @@ import inspect
 def write_log(member_id: str = "", message: str = ""):
     try:
         # ✅ LoginID: 로그인된 세션에서 가져오되 없으면 "AppsScript"
-        login_id = st.session_state.get("user_id", "AppsScript")
+        login_id = st.session_state.get("user_id", "")
 
         # ✅ Action: 호출한 함수명 자동 감지
         frame = inspect.currentframe()
@@ -149,10 +149,7 @@ def write_log(member_id: str = "", message: str = ""):
     except Exception as e:
         print(f"[로그 기록 실패] {e}")
 
-write_log("", f"🛰️ 요청 도달 확인 로그")
 write_log("", f"📩 트리거 요청 감지 (헤더 기반): trigger={trigger}, token={token}")
-write_log("",query_params)
-print("✅ Streamlit 앱 실행 시작")
 
 def create_account_sheet():
     # 구글 인증 범위
