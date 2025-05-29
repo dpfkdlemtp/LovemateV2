@@ -47,16 +47,3 @@ def add_watermark_to_pdf(input_pdf, output_pdf, watermark_pdf):
             with open(output_pdf, 'wb') as output_file:
                 writer.write(output_file)
 
-
-if __name__ == "__main__":
-    # 1. 워터마크 PDF 생성
-    watermark_text = "010-1234-5678"  # 워터마크로 삽입할 텍스트
-    watermark_pdf = "watermark.pdf"
-    create_watermark(watermark_text, watermark_pdf)
-
-    # 2. 원본 PDF에 워터마크 추가
-    input_pdf = "profile_generated.pdf"  # 원본 PDF 파일 경로
-    output_pdf = "output_watermarked.pdf"  # 워터마크가 추가된 PDF 저장 경로
-    add_watermark_to_pdf(input_pdf, output_pdf, watermark_pdf)
-
-    print(f"워터마크가 추가된 PDF가 '{output_pdf}'에 저장되었습니다.")
