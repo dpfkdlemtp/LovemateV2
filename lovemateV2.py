@@ -149,9 +149,7 @@ def write_log(member_id: str = "", message: str = ""):
     except Exception as e:
         print(f"[로그 기록 실패] {e}")
 
-write_log("", f"📩 트리거 요청 감지 (헤더 기반): trigger={trigger}, token={token}")
-write_log("", str(trigger=="multi_matching"))
-
+write_log("", f"📩 트리거 요청 감지 : trigger={trigger}, token={token}")
 def create_account_sheet():
     # 구글 인증 범위
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -862,17 +860,16 @@ def run_multi_matching():
 
 # URL 쿼리를 통해 mulit_bulk_matching 트리거
 if trigger == "multi_matching":
-    write_log("", "trigger1")
-    if token != "TAEHA":  # ✅ secrets.toml에 미리 저장된 토큰
-        write_log("","trigger2")
+    # ✅ 요청 출처 검증을 위한 토큰 검사
+    if token != st.secrets.get("apps_script_token"):  # ✅ secrets.toml에 미리 저장된 토큰
         st.error("⛔ 요청 권한 없음")
         write_log("","❌ 외부 트리거 거부됨: 유효하지 않은 토큰")
         st.stop()
 
-    write_log("","trigger3")
-    run_multi_matching()
-    write_log("","✅ 외부 트리거: 매칭 완료됨")
-    st.stop()
+    with st.spinner("외부 트리거에 의해 multi matching 실행 중..."):
+        run_multi_matching()
+        write_log("","✅ 외부 트리거: 매칭 완료됨")
+        st.stop()
 
 
 # ---------------------------
