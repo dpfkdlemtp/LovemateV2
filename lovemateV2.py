@@ -1,4 +1,3 @@
-print("--- 앱 실행 최상단 로그 (콘솔 전용) ---") # 이것도 추가해보세요.
 #streamlit run lovemateV2.py
 
 #run_multi_matching 함수 시트 변경 필요
@@ -9,6 +8,8 @@ import urllib
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from oauth2client.service_account import ServiceAccountCredentials
+from makeWatermarkToPdf import create_watermark, add_watermark_to_pdf
+from urllib.request import urlretrieve
 from cryptography.fernet import Fernet
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
@@ -857,6 +858,57 @@ def run_multi_matching():
     except Exception as e:
         print(f"❌ 전체 처리 실패: {e}")
 
+def get_phone_number_by_member_id(member_id: str) -> str:
+    member_df = load_sheet("회원")
+    member_df["회원 ID"] = member_df["회원 ID"].astype(str).str.strip()
+    row = member_df[member_df["회원 ID"] == str(member_id).strip()]
+    if not row.empty:
+        return row.iloc[0].get("휴대폰번호", "010-0000-0000")
+    return "010-0000-0000"
+
+
+def process_and_upload_watermarked_pdf(member_id, source_url, save_name, target_folder_id):
+    import tempfile
+    import os
+
+    try:
+        # 🔍 회원 ID로 휴대폰 번호 조회
+        phone_number = get_phone_number_by_member_id(member_id)
+
+        # 1. 임시 파일 생성
+        input_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
+        watermark_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
+        output_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
+
+        # 2. 원본 PDF 다운로드
+        from urllib.request import urlretrieve
+        urlretrieve(source_url, input_pdf)
+
+        # 3. 워터마크 PDF 생성 (📱 휴대폰 번호 사용)
+        create_watermark(phone_number, watermark_pdf)
+
+        # 4. 워터마크 적용된 PDF 생성
+        add_watermark_to_pdf(input_pdf, output_pdf, watermark_pdf)
+
+        # 5. Google Drive 업로드
+        uploaded_id = upload_file_to_drive(output_pdf, save_name, target_folder_id)
+        final_link = f"https://drive.google.com/file/d/{uploaded_id}/view?usp=sharing"
+
+        # 6. 임시 파일 정리
+        for f in [input_pdf, watermark_pdf, output_pdf]:
+            if os.path.exists(f):
+                os.remove(f)
+
+        return final_link
+
+    except Exception as e:
+        write_log(member_id, f"❌ 워터마크 생성 실패: {e}")
+        # 실패 시 임시 파일 삭제
+        for f in [input_pdf, watermark_pdf, output_pdf]:
+            if f and os.path.exists(f):
+                os.remove(f)
+        return None
+
 
 # URL 쿼리를 통해 mulit_bulk_matching 트리거
 if trigger == "multi_matching":
@@ -870,6 +922,46 @@ if trigger == "multi_matching":
         run_multi_matching()
         write_log("","✅ 외부 트리거: 매칭 완료됨")
         st.stop()
+elif trigger == "watermark":
+    # ✅ 요청 출처 검증을 위한 토큰 검사
+    if token != st.secrets.get("apps_script_token"):  # ✅ secrets.toml에 미리 저장된 토큰
+        st.error("⛔ 요청 권한 없음")
+        write_log("", "❌ 외부 트리거 거부됨: 유효하지 않은 토큰")
+        st.stop()
+    with st.spinner("📄 워터마크 삽입 중..."):
+        try:
+            df, ws = load_sheet_with_ws("테스트용(하태훈)2의 사본")
+
+            for base_row in range(3, 32, 4):  # B3, B7, ..., B31
+                member_id = str(ws.acell(f"B{base_row}").value).strip()
+                if not member_id:
+                    continue
+
+                for i in range(4):  # J열 ~ S열 ~ T열
+                    pid = str(ws.acell(f"J{base_row + i}").value).strip()
+                    source_link = str(ws.acell(f"S{base_row + i}").value).strip()
+
+                    if pid and source_link:
+                        source_id = extract_drive_file_id(source_link)
+                        new_name = f"{member_id}_프로필카드_{pid}.pdf"
+                        folder_id = "104l4k5PPO25thz919Gi4241_IQ_MSsfe"  # ✅ 실제 업로드 폴더 ID
+
+                        try:
+                            new_link = process_and_upload_watermarked_pdf(member_id, source_link, new_name, folder_id)
+                            if new_link:
+                                ws.update_cell(base_row + i, 20, new_link)  # T열
+                                write_log(member_id, f"✅ 워터마크 완료 ({pid}) → 링크 저장됨")
+                            else:
+                                write_log(member_id, f"❌ 워터마크 실패 ({pid})")
+                        except Exception as e:
+                            write_log(member_id, f"❌ 오류 ({pid}): {e}")
+            write_log("", "✅ 외부 트리거: 워터마크 완료됨")
+            st.success("✅ 모든 워터마크 처리 완료")
+            st.stop()
+        except Exception as e:
+            st.error(f"❌ 전체 워터마크 처리 실패: {e}")
+            write_log("", f"❌ 워터마크 처리 중 오류: {e}")
+            st.stop()
 
 
 # ---------------------------
