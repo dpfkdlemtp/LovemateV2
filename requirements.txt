@@ -9,3 +9,4 @@ reportlab
 cryptography
 regex
 streamlit-oauth
+PyPDF2
