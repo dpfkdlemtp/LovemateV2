@@ -914,7 +914,7 @@ if trigger == "multi_matching":
     # 실행 코드
     with st.spinner("외부 트리거에 의해 multi matching 실행 중..."):
         run_multi_matching()
-        write_log("","✅ 외부 트리거: 매칭 완료됨 탭을 종료해주세요.")
+        write_log("","✅ 외부 트리거: 매칭 완료됨 ")
         st.stop()
 
 
