@@ -1,10 +1,9 @@
-print("--- 앱 실행 최상단 로그 (콘솔 전용) ---") # 이것도 추가해보세요.
 #streamlit run lovemateV2.py
 
 #run_multi_matching 함수 시트 변경 필요
 #tab3의 시트 도 변경 필요
 
-from urllib.parse import urlparse, parse_qs
+
 import urllib
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -36,16 +35,14 @@ import requests
 import pandas as pd
 from datetime import datetime
 from urllib.parse import urlencode
-from urllib.parse import urlparse, parse_qs
+
+params = st.query_params
+trigger = params.get("trigger", [None])[0]
 
 st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
 
-params = dict(st.query_params)
-trigger = params.get("trigger", [None])
-token = params.get("token", [None])
-
-
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "메모장", "프로필카드 생성"])
+
 # # ✅ 세션 기본 설정 (로그인 생략용 테스트)
 # if "logged_in" not in st.session_state:
 #     # 테스트용 자동 로그인 활성화
@@ -132,7 +129,7 @@ import inspect
 def write_log(member_id: str = "", message: str = ""):
     try:
         # ✅ LoginID: 로그인된 세션에서 가져오되 없으면 "AppsScript"
-        login_id = st.session_state.get("user_id", "")
+        login_id = st.session_state.get("user_id", "AppsScript")
 
         # ✅ Action: 호출한 함수명 자동 감지
         frame = inspect.currentframe()
@@ -149,7 +146,6 @@ def write_log(member_id: str = "", message: str = ""):
     except Exception as e:
         print(f"[로그 기록 실패] {e}")
 
-write_log("", f"📩 트리거 요청 감지 : trigger={trigger}, token={token}")
 def create_account_sheet():
     # 구글 인증 범위
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -169,7 +165,7 @@ def create_account_sheet():
         print(f"✅ 시트 '{sheet_name}'이 이미 존재합니다.")
     except gspread.exceptions.WorksheetNotFound:
         worksheet = sheet.add_worksheet(title=sheet_name, rows="100", cols="3")
-        worksheet.update("A1:C1", [["이메일", "PW", "마지막 로그인 시간"]])
+        worksheet.update("A1:C1", [["ID", "PW", "마지막 로그인 시간"]])
         print(f"🆕 시트 '{sheet_name}'이 새로 생성되었습니다.")
 
     return worksheet
@@ -181,13 +177,13 @@ def signup(new_id, new_pw):
 
     # ✅ 계정정보 시트가 비어있거나 헤더가 없는 경우 → 초기화
     if df_accounts.empty or "ID" not in df_accounts.columns:
-        ws_accounts.update("A1:C1", [["이메일", "PW", "마지막 로그인 시간"]])
-        df_accounts = pd.DataFrame(columns=["이메일", "PW", "마지막 로그인 시간"])
+        ws_accounts.update("A1:C1", [["ID", "PW", "마지막 로그인 시간"]])
+        df_accounts = pd.DataFrame(columns=["ID", "PW", "마지막 로그인 시간"])
         st.warning("⚠️ 계정정보 시트가 비어 있어 자동 초기화되었습니다. 다시 시도해주세요.")
         return False, "⚠️ 시트를 초기화했어요. 다시 회원가입을 시도해주세요."
 
     # ID 중복 체크
-    if new_id in df_accounts["이메일"].values:
+    if new_id in df_accounts["ID"].values:
         return False, "❌ 이미 존재하는 ID입니다."
 
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -200,22 +196,24 @@ def signup(new_id, new_pw):
     # 2. 메모 시트 추가
     new_memo_row = [new_id, "", now_str]
     if df_memo.empty:
-        ws_memo.update('A2', [["이메일", "메모", "저장 시간"]])
+        ws_memo.update('A2', [["ID", "메모", "저장 시간"]])
     ws_memo.append_row(new_memo_row)
 
     # 3. 로그인 기록 시트 추가
     new_log_row = [new_id, now_str]
     if df_log.empty:
-        ws_log.update('A2', [["이메일", "로그인 시간"]])
+        ws_log.update('A2', [["ID", "로그인 시간"]])
     ws_log.append_row(new_log_row)
 
     return True, "✅ 회원가입 완료!"
+
+
 # ✅ 로그인 함수
 def login(user_id, user_pw):
     df_accounts, ws_accounts = connect_sheet("계정정보")
     df_log, ws_log = connect_sheet("로그인기록")
 
-    user = df_accounts[df_accounts["이메일"] == user_id]
+    user = df_accounts[df_accounts["ID"] == user_id]
     if not user.empty:
         try:
             decrypted_pw = decrypt_password(user.iloc[0]["PW"])
@@ -253,6 +251,86 @@ if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 if "user_id" not in st.session_state:
     st.session_state["user_id"] = ""
+
+code = params.get("code", [None])[0]
+
+if not st.session_state["logged_in"] and not code:
+    st.write("1")
+    st.session_state.clear()
+    st.title("🔐 Google 로그인")
+    query = urlencode({
+        "client_id": CLIENT_ID,
+        "redirect_uri": REDIRECT_URI,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "consent"
+    })
+    login_url = f"{AUTHORIZATION_ENDPOINT}?{query}"
+    st.markdown(f"[🔑 Google 계정으로 로그인]({login_url})")
+    st.stop()
+
+elif code and not st.session_state["logged_in"]:
+    st.write("2")
+    # ✅ 코드로 토큰 요청
+    data = {
+        "code": code,
+        "client_id": CLIENT_ID,
+        "client_secret": st.secrets["google"]["client_secret"],
+        "redirect_uri": REDIRECT_URI,
+        "grant_type": "authorization_code"
+    }
+    token_res = requests.post(TOKEN_ENDPOINT, data=data).json()
+    id_token = token_res.get("id_token")
+    access_token = token_res.get("access_token")
+
+    if id_token and access_token:
+        st.write("3")
+        req = google.auth.transport.requests.Request()
+        id_info = google.oauth2.id_token.verify_oauth2_token(id_token, req, CLIENT_ID)
+        user_email = id_info.get("email")
+        user_name = id_info.get("name", user_email)
+        st.session_state["user_id"] = user_email
+
+        # ✅ 계정정보 시트 연결 및 불러오기
+        df_accounts, ws_accounts = connect_sheet("가입허용")
+        if "가입허용" not in df_accounts.columns:
+            st.error("❌ [가입허용] 시트에 '가입허용' 컬럼이 없습니다. 관리자에게 문의해주세요.")
+            st.stop()
+        df_accounts.columns = [col.strip() for col in df_accounts.columns]
+
+        if "이메일" not in df_accounts.columns:
+            ws_accounts.update("A1:D1", [["이메일", "이름", "가입허용", "마지막 로그인 시간"]])
+            df_accounts = pd.DataFrame(columns=["이메일", "이름", "가입허용", "마지막 로그인 시간"])
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        if user_email not in df_accounts["이메일"].values:
+            ws_accounts.append_row([user_email, user_name, "", now])
+            st.warning("📬 관리자 승인이 필요합니다. 가입 요청이 기록되었습니다.")
+            st.stop()
+        else:
+            row_index = df_accounts.index[df_accounts["이메일"] == user_email][0] + 2
+            ws_accounts.update(f"D{row_index}", [[now]])
+
+            user_row = df_accounts.loc[df_accounts["이메일"] == user_email].iloc[0]
+            if str(user_row.get("가입허용", "")).strip().upper() == "O":
+                st.session_state["logged_in"] = True
+                st.sidebar.success(f"✅ {user_email} 님 로그인됨")
+                if st.sidebar.button("🔓 로그아웃"):
+                    st.session_state.clear()
+                    st.query_params.clear()
+                    st.rerun()
+            else:
+                st.warning("⛔ 아직 관리자 승인 대기 중입니다. 가입 요청은 이미 등록되었습니다.")
+                st.stop()
+else:
+    st.write("4")
+    st.sidebar.success(f"✅ {st.session_state['user_id']} 님 로그인됨")
+    if st.sidebar.button("🔓 로그아웃"):
+        st.session_state.clear()
+        st.query_params.clear()
+        st.rerun()
 
 # # ✅ Google 서비스 계정 키 로딩 함수
 # def load_google_service_account_key():
@@ -564,33 +642,6 @@ def generate_profile_card_from_sheet(member_id: str):
     )
 
     write_log(member_id, f"[디버그] ✅ 업로드 완료: 파일 ID {uploaded_id}")
-
-    # ✅ 프로필카드 링크 생성
-    pdf_url = f"https://drive.google.com/file/d/{uploaded_id}/view?usp=sharing"
-
-    # ✅ 프로필 시트의 AY열에 링크 업데이트
-    try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        key_dict = load_google_service_account_key()
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, scope)
-        client = gspread.authorize(creds)
-
-        sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1jnZqqmZB8zWau6CHqxm-L9fxlXDaWxOaJm6uDcE6WN0/edit")
-        worksheet = sheet.worksheet("프로필")
-        all_values = worksheet.get_all_values()
-        headers = all_values[1]  # 2행이 헤더
-        data_rows = all_values[2:]  # 3행부터 데이터
-
-        for idx, row in enumerate(data_rows):
-            if str(row[headers.index("회원 ID")]).strip() == str(member_id).strip():
-                row_num = idx + 3  # 실제 시트 행 번호
-                col_num = headers.index("프로필카드") + 1 if "프로필카드" in headers else 51  # AY열 기본값
-                worksheet.update_cell(row_num, col_num, pdf_url)
-                write_log(member_id, f"✅ 프로필카드 링크 저장 완료: {pdf_url}")
-                break
-    except Exception as e:
-        write_log(member_id, f"❌ 프로필카드 링크 저장 실패: {e}")
-
     return uploaded_id
 
 # ---------------------------
@@ -860,15 +911,10 @@ def run_multi_matching():
 
 # URL 쿼리를 통해 mulit_bulk_matching 트리거
 if trigger == "multi_matching":
-    # ✅ 요청 출처 검증을 위한 토큰 검사
-    if token != st.secrets.get("apps_script_token"):  # ✅ secrets.toml에 미리 저장된 토큰
-        st.error("⛔ 요청 권한 없음")
-        write_log("","❌ 외부 트리거 거부됨: 유효하지 않은 토큰")
-        st.stop()
-
+    # 실행 코드
     with st.spinner("외부 트리거에 의해 multi matching 실행 중..."):
         run_multi_matching()
-        write_log("","✅ 외부 트리거: 매칭 완료됨")
+        write_log("","✅ 외부 트리거: 매칭 완료됨 탭을 종료해주세요.")
         st.stop()
 
 
@@ -876,119 +922,43 @@ if trigger == "multi_matching":
 # Streamlit UI
 # ---------------------------
 
-code = params.get("code", [None])
-if not st.session_state["logged_in"] and code == [None]:
-    st.title("🔐 Google 로그인")
-    query = urlencode({
-        "client_id": CLIENT_ID,
-        "redirect_uri": REDIRECT_URI,
-        "response_type": "code",
-        "scope": "openid email profile",
-        "access_type": "offline",
-        "prompt": "consent"
-    })
-    login_url = f"{AUTHORIZATION_ENDPOINT}?{query}"
-    st.markdown(f"[🔑 Google 계정으로 로그인]({login_url})")
-    st.stop()
+# -------------------------------------------
+# 🛡️ 로그인 화면
+if not st.session_state["logged_in"]:
+    st.title("🔒 로그인 또는 회원가입")
 
-elif code and not st.session_state["logged_in"]:
-    # st.write(st.session_state["logged_in"])
+    login_tab, signup_tab = st.tabs(["로그인", "회원가입"])
 
-    # ✅ 코드로 토큰 요청
-    data = {
-        "code": code,
-        "client_id": CLIENT_ID,
-        "client_secret": st.secrets["google"]["client_secret"],
-        "redirect_uri": REDIRECT_URI,
-        "grant_type": "authorization_code"
-    }
+    with login_tab:
+        user_id = st.text_input("ID", key="login_id")
+        user_pw = st.text_input("PW", type="password", key="login_pw")
 
-    # 응답 그대로 저장
-    token_res = requests.post(TOKEN_ENDPOINT, data=data)
-    #st.write(data)
-    #st.write(token_res)
-    try:
-        # ✅ JSON 응답 파싱
-        token_data = token_res.json()
-        #st.write("🔄 token_res 응답:")
-        id_token = token_data.get("id_token")
-        access_token = token_data.get("access_token")
-
-        if id_token and access_token:
-            st.query_params.clear()  # 로그인 성공 후 인증코드 제거
-            req = google.auth.transport.requests.Request()
-            id_info = google.oauth2.id_token.verify_oauth2_token(id_token, req, CLIENT_ID)
-            user_email = id_info.get("email")
-            user_name = id_info.get("name", user_email)
-            st.session_state["user_id"] = user_email
-
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-            # ✅ 계정정보 시트 연결 및 불러오기
-            df_accounts, ws_accounts = connect_sheet("가입허용")
-            df_memo, ws_memo = connect_sheet("메모")
-            df_log, ws_log = connect_sheet("로그인기록")
-
-            if "가입허용" not in df_accounts.columns:
-                st.error("❌ [가입허용] 시트에 '가입허용' 컬럼이 없습니다. 관리자에게 문의해주세요.")
-                st.stop()
-            df_accounts.columns = [col.strip() for col in df_accounts.columns]
-
-            if "이메일" not in df_accounts.columns:
-                ws_accounts.update("A1:D1", [["이메일", "이름", "가입허용", "마지막 로그인 시간"]])
-                df_accounts = pd.DataFrame(columns=["이메일", "이름", "가입허용", "마지막 로그인 시간"])
-
-            if user_email not in df_accounts["이메일"].values:
-                ws_accounts.append_row([user_email, user_name, "", now])
-                st.warning("📬 관리자 승인이 필요합니다. 가입 요청이 기록되었습니다.")
-                st.stop()
+        if st.button("로그인"):
+            if login(user_id, user_pw):
+                st.session_state["logged_in"] = True
+                st.session_state["user_id"] = user_id
+                st.success(f"✅ 로그인 성공: {user_id}님 환영합니다.")
+                st.rerun()
             else:
-                row_index = df_accounts.index[df_accounts["이메일"] == user_email][0] + 2
-                ws_accounts.update(f"D{row_index}", [[now]])
+                st.error("❌ 로그인 실패: ID 또는 비밀번호가 일치하지 않습니다.")
 
-                user_row = df_accounts.loc[df_accounts["이메일"] == user_email].iloc[0]
-                if str(user_row.get("가입허용", "")).strip().upper() == "O":
-                    st.session_state["logged_in"] = True
+    with signup_tab:
+        new_id = st.text_input("새 ID", key="signup_id")
+        new_pw = st.text_input("새 PW", type="password", key="signup_pw")
 
-                    # ✅ 메모 시트 등록 여부 확인
-                    if user_email not in df_memo["이메일"].values:
-                        ws_memo.append_row([user_email, "", now])
-
-                    # ✅ 로그인기록 시트 추가
-                    try:
-                        next_seq = len(df_log) + 1
-                        ws_log.append_row([next_seq, user_email, now])
-                    except Exception as e:
-                        st.error(f"로그인 기록 저장 실패: {e}")
-                        write_log(user_email, f"로그인 기록 저장 실패: {e}")
+        if st.button("회원가입"):
+            success, msg = signup(new_id, new_pw)
+            if success:
+                st.success(msg)
+                st.rerun()
+            else:
+                st.error(msg)
 
 
-
-                    st.rerun()
-                    ############################# 시작 #########################################
-
-
-
-
-
-
-                    ############################## 끝 ################################################
-                else:
-                    st.warning("⛔ 아직 관리자 승인 대기 중입니다. 가입 요청은 이미 등록되었습니다.")
-                    st.stop()
-        else:
-            st.error("❌ 로그인 인증코드가 유효하지 않거나 만료되었습니다. 다시 로그인해주세요.")
-            st.query_params.clear()  # ✅ 인증 실패 시 code 파라미터 삭제
-            st.stop()
-    except Exception as e:
-        st.error(f"❌ 응답 파싱 실패: {e}")
-        st.stop()
+# -------------------------------------------
+# 🚀 로그인 완료 후 탭 화면
 else:
-    st.sidebar.success(f"✅ {st.session_state['user_id']} 님 로그인됨")
-    if st.sidebar.button("🔓 로그아웃"):
-        st.session_state.clear()
-        st.query_params.clear()
-        st.rerun()
+    # ✅ 5분마다 자동 새로고침
     if "last_rerun_time" not in st.session_state:
         st.session_state["last_rerun_time"] = time.time()
 
@@ -1445,7 +1415,7 @@ else:
         def save_memo_to_sheet(user_id, memo_content):
             df_memo, ws_memo = connect_sheet("메모")
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            user_rows = df_memo[df_memo["이메일"] == user_id]
+            user_rows = df_memo[df_memo["ID"] == user_id]
 
             if not user_rows.empty:
                 row_idx = user_rows.index[0] + 2
@@ -1460,7 +1430,7 @@ else:
         # ✅ 메모 불러오기 함수
         def load_memo_from_sheet(user_id):
             df_memo, ws_memo = connect_sheet("메모")
-            user_rows = df_memo[df_memo["이메일"] == user_id]
+            user_rows = df_memo[df_memo["ID"] == user_id]
             if not user_rows.empty:
                 return user_rows.iloc[0]["메모"]
             else:
