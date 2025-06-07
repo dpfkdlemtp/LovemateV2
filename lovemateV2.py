@@ -164,7 +164,7 @@ def write_log(member_id: str = "", message: str = ""):
         print(f"[로그 기록 실패] {e}")
 
 
-write_log("", f"📩 트리거 요청 감지 : trigger={trigger}, token={token}")
+write_log("", f"📩 트리거 요청 감지 : trigger={trigger}, token={token}, sheet_name={sheet_name}")
 
 
 def create_account_sheet():
