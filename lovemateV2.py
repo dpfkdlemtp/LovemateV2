@@ -933,11 +933,15 @@ def process_and_upload_watermarked_pdf(member_id, source_url, save_name, target_
         # 🔍 회원 ID로 휴대폰 번호 조회
         phone_number = get_phone_number_by_member_id(member_id)
         write_log(member_id, "phone_number")
-        
+
         # 1. 임시 파일 생성
         input_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
+        write_log(member_id, "1")
         watermark_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
+        write_log(member_id, "2")
         output_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
+        write_log(member_id, "3")
+        
 
         # 2. 원본 PDF 다운로드
         from urllib.request import urlretrieve
