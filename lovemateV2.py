@@ -1,7 +1,7 @@
-#streamlit run lovemateV2.py
+# streamlit run lovemateV2.py
 
-#run_multi_matching 함수 시트 변경 필요
-#tab3의 시트 도 변경 필요
+# run_multi_matching 함수 시트 변경 필요
+# tab3의 시트 도 변경 필요
 
 from urllib.parse import urlparse, parse_qs
 import urllib
@@ -44,9 +44,11 @@ st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
 params = dict(st.query_params)
 trigger = params.get("trigger", [None])
 token = params.get("token", [None])
-
+sheet_name = params.get("sheet_name", ["멀티매칭"])  # 기본값 설정
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "메모장", "프로필카드 생성"])
+
+
 # # ✅ 세션 기본 설정 (로그인 생략용 테스트)
 # if "logged_in" not in st.session_state:
 #     # 테스트용 자동 로그인 활성화
@@ -59,9 +61,10 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원",
 # # if "user_id" not in st.session_state:
 # #     st.session_state["user_id"] = ""
 
-#Streamlit App 전용
+# Streamlit App 전용
 def load_google_service_account_key():
     return st.secrets["gcp"]
+
 
 # Streamlit 콘솔 로그 출력용 (브라우저 개발자 도구에서 확인 가능)
 def js_console_log(message):
@@ -69,6 +72,7 @@ def js_console_log(message):
         f"<script>console.log('[Streamlit JS] {message}');</script>",
         unsafe_allow_html=True
     )
+
 
 # 🔒 암복호화용 키 로딩 (키정보 시트 B1)
 @st.cache_resource(show_spinner=False)
@@ -80,7 +84,8 @@ def load_sheet_with_ws(sheet_name):
     client = gspread.authorize(creds)
 
     # ✅ 링크는 load_sheet와 동일한 두 번째 문서
-    sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1jnZqqmZB8zWau6CHqxm-L9fxlXDaWxOaJm6uDcE6WN0/edit")
+    sheet = client.open_by_url(
+        "https://docs.google.com/spreadsheets/d/1jnZqqmZB8zWau6CHqxm-L9fxlXDaWxOaJm6uDcE6WN0/edit")
     worksheet = sheet.worksheet(sheet_name)
     raw_values = worksheet.get_all_values()
     header = raw_values[1]
@@ -88,32 +93,38 @@ def load_sheet_with_ws(sheet_name):
     df = pd.DataFrame(data, columns=header)
     return df, worksheet
 
+
 def load_secret_key():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(load_google_service_account_key(), scope)
     client = gspread.authorize(creds)
 
-    sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1XwEk_TifWuCkOjjUuJ0kMFYy0dKxV46XvQ_rgts2kL8/edit")
+    sheet = client.open_by_url(
+        "https://docs.google.com/spreadsheets/d/1XwEk_TifWuCkOjjUuJ0kMFYy0dKxV46XvQ_rgts2kL8/edit")
     ws = sheet.worksheet("키정보")
     key = ws.acell('B1').value
     return key.encode()
+
 
 # 🔒 비밀번호 암호화
 def encrypt_password(password):
     fernet = Fernet(load_secret_key())
     return fernet.encrypt(password.encode()).decode()
 
+
 # 🔓 비밀번호 복호화
 def decrypt_password(encrypted_password):
     fernet = Fernet(load_secret_key())
     return fernet.decrypt(encrypted_password.encode()).decode()
+
 
 # ✅ 구글 관리자 스프레드시트 연결
 def connect_sheet(sheet_name):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(load_google_service_account_key(), scope)
     client = gspread.authorize(creds)
-    sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1XwEk_TifWuCkOjjUuJ0kMFYy0dKxV46XvQ_rgts2kL8/edit")
+    sheet = client.open_by_url(
+        "https://docs.google.com/spreadsheets/d/1XwEk_TifWuCkOjjUuJ0kMFYy0dKxV46XvQ_rgts2kL8/edit")
     worksheet = sheet.worksheet(sheet_name)
 
     try:
@@ -123,12 +134,14 @@ def connect_sheet(sheet_name):
 
     except Exception as e:
         st.error(f"❌ [{sheet_name}] 시트 연결 중 오류 발생: {e}")
-        write_log("",f"❌ [{sheet_name}] 시트 연결 중 오류 발생: {e}")
+        write_log("", f"❌ [{sheet_name}] 시트 연결 중 오류 발생: {e}")
         df = pd.DataFrame()  # 비어있는 DataFrame 리턴 (에러 방지)
 
     return df, worksheet
 
+
 import inspect
+
 
 def write_log(member_id: str = "", message: str = ""):
     try:
@@ -150,7 +163,10 @@ def write_log(member_id: str = "", message: str = ""):
     except Exception as e:
         print(f"[로그 기록 실패] {e}")
 
+
 write_log("", f"📩 트리거 요청 감지 : trigger={trigger}, token={token}")
+
+
 def create_account_sheet():
     # 구글 인증 범위
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -161,7 +177,8 @@ def create_account_sheet():
     client = gspread.authorize(creds)
 
     # 📌 스프레드시트 열기 (관리자용 시트 URL 사용)
-    sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1XwEk_TifWuCkOjjUuJ0kMFYy0dKxV46XvQ_rgts2kL8/edit")
+    sheet = client.open_by_url(
+        "https://docs.google.com/spreadsheets/d/1XwEk_TifWuCkOjjUuJ0kMFYy0dKxV46XvQ_rgts2kL8/edit")
 
     # ✅ 시트가 이미 존재하는지 확인하고 없으면 생성
     sheet_name = "계정정보"
@@ -174,6 +191,7 @@ def create_account_sheet():
         print(f"🆕 시트 '{sheet_name}'이 새로 생성되었습니다.")
 
     return worksheet
+
 
 def signup(new_id, new_pw):
     df_accounts, ws_accounts = connect_sheet("계정정보")
@@ -211,6 +229,8 @@ def signup(new_id, new_pw):
     ws_log.append_row(new_log_row)
 
     return True, "✅ 회원가입 완료!"
+
+
 # ✅ 로그인 함수
 def login(user_id, user_pw):
     df_accounts, ws_accounts = connect_sheet("계정정보")
@@ -234,7 +254,7 @@ def login(user_id, user_pw):
                     ws_log.append_row(new_log_row)
                 except Exception as e:
                     st.error(f"로그인 기록 저장 실패: {e}")
-                    write_log("",f"로그인 기록 저장 실패: {e}")
+                    write_log("", f"로그인 기록 저장 실패: {e}")
 
                 return True
             else:
@@ -243,6 +263,7 @@ def login(user_id, user_pw):
             return False
     else:
         return False
+
 
 CLIENT_ID = st.secrets["google"]["client_id"]
 REDIRECT_URI = "https://lovematev2.streamlit.app"
@@ -254,6 +275,7 @@ if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 if "user_id" not in st.session_state:
     st.session_state["user_id"] = ""
+
 
 # # ✅ Google 서비스 계정 키 로딩 함수
 # def load_google_service_account_key():
@@ -268,13 +290,15 @@ def load_sheet(sheet_name):
     key_dict = load_google_service_account_key()
     creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, scope)
     client = gspread.authorize(creds)
-    sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1jnZqqmZB8zWau6CHqxm-L9fxlXDaWxOaJm6uDcE6WN0/edit")
+    sheet = client.open_by_url(
+        "https://docs.google.com/spreadsheets/d/1jnZqqmZB8zWau6CHqxm-L9fxlXDaWxOaJm6uDcE6WN0/edit")
     worksheet = sheet.worksheet(sheet_name)
     raw_values = worksheet.get_all_values()
     header = raw_values[1]
     data = raw_values[2:]
     df = pd.DataFrame(data, columns=header)
     return df
+
 
 # ✅ Google Drive 연결 함수
 @st.cache_resource(ttl=3000, show_spinner=False)
@@ -283,6 +307,7 @@ def get_drive_service():
     key_dict = load_google_service_account_key()
     creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, scope)
     return build('drive', 'v3', credentials=creds)
+
 
 # --- 업로드 함수 (캐시 없음) ---
 def upload_image_to_drive(image_file, file_name, original_file_id=None):
@@ -338,7 +363,7 @@ def copy_drive_permissions(source_file_id, target_file_id):
                     supportsAllDrives=True
                 ).execute()
             except Exception:
-                write_log("","드라이브 권한 복사 오류")
+                write_log("", "드라이브 권한 복사 오류")
                 pass
 
 
@@ -351,13 +376,15 @@ def set_drive_public_permission(file_id):
         supportsAllDrives=True
     ).execute()
 
+
 # --- 시트 업데이트 함수 ---
 def update_profile_photo_in_sheet(member_id, photo_index, new_url):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     key_dict = load_google_service_account_key()
     creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, scope)
     client = gspread.authorize(creds)
-    sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1jnZqqmZB8zWau6CHqxm-L9fxlXDaWxOaJm6uDcE6WN0/edit")
+    sheet = client.open_by_url(
+        "https://docs.google.com/spreadsheets/d/1jnZqqmZB8zWau6CHqxm-L9fxlXDaWxOaJm6uDcE6WN0/edit")
     worksheet = sheet.worksheet("프로필")
     all_values = worksheet.get_all_values()
     headers = all_values[1]  # 2행: 헤더
@@ -376,12 +403,14 @@ def update_profile_photo_in_sheet(member_id, photo_index, new_url):
             return True
     return False
 
+
 def get_latest_profile_photo(member_id):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     key_dict = load_google_service_account_key()
     creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, scope)
     client = gspread.authorize(creds)
-    sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1jnZqqmZB8zWau6CHqxm-L9fxlXDaWxOaJm6uDcE6WN0/edit")
+    sheet = client.open_by_url(
+        "https://docs.google.com/spreadsheets/d/1jnZqqmZB8zWau6CHqxm-L9fxlXDaWxOaJm6uDcE6WN0/edit")
     worksheet = sheet.worksheet("프로필")
 
     all_values = worksheet.get_all_values()
@@ -398,11 +427,13 @@ def get_latest_profile_photo(member_id):
 
     return []
 
+
 def image_to_base64(img):
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     img_b64 = base64.b64encode(buffered.getvalue()).decode()
     return img_b64
+
 
 @st.cache_data(ttl=300, show_spinner=False)
 def get_drive_image(file_id):
@@ -418,6 +449,7 @@ def get_drive_image(file_id):
     image.thumbnail((200, 200))  # 크기 축소
     return image
 
+
 def get_drive_image_profilecard(file_id):
     service = get_drive_service()
     request = service.files().get_media(fileId=file_id)
@@ -428,6 +460,7 @@ def get_drive_image_profilecard(file_id):
         _, done = downloader.next_chunk()
     fh.seek(0)
     return Image.open(fh)  # 👈 썸네일 처리 없이 원본 이미지 반환
+
 
 @st.cache_data(ttl=300, show_spinner=False)
 def get_drive_image2(file_id):
@@ -443,6 +476,7 @@ def get_drive_image2(file_id):
     image.thumbnail((300, 300))  # 크기 축소
     return image
 
+
 # Google Drive 공유 URL에서 파일 ID 추출
 def extract_drive_file_id(url):
     if "id=" in url:
@@ -450,6 +484,7 @@ def extract_drive_file_id(url):
     elif "/file/d/" in url:
         return url.split("/file/d/")[-1].split("/")[0]
     return ""
+
 
 def upload_file_to_drive(file_path, filename, folder_id):
     scopes = ['https://www.googleapis.com/auth/drive']
@@ -482,18 +517,18 @@ def upload_file_to_drive(file_path, filename, folder_id):
         ).execute()
         return uploaded['id']
 
+
 def generate_profile_card_from_sheet(member_id: str):
     member_df = load_sheet("회원")
     profile_df = load_sheet("프로필")
 
-
-    write_log(member_id,f"[디버그] 시트 로딩 완료: 회원 {len(member_df)}명, 프로필 {len(profile_df)}명")
+    write_log(member_id, f"[디버그] 시트 로딩 완료: 회원 {len(member_df)}명, 프로필 {len(profile_df)}명")
 
     member_data = member_df[member_df["회원 ID"] == member_id]
     profile_data = profile_df[profile_df["회원 ID"] == member_id]
 
     if member_data.empty or profile_data.empty:
-        write_log(member_id,f"[❌에러] {member_id}에 해당하는 정보가 시트에 없습니다.")
+        write_log(member_id, f"[❌에러] {member_id}에 해당하는 정보가 시트에 없습니다.")
         raise ValueError(f"{member_id}에 해당하는 회원 정보 또는 프로필 정보가 없습니다.")
 
     m = member_data.iloc[0].to_dict()
@@ -504,7 +539,7 @@ def generate_profile_card_from_sheet(member_id: str):
     photo_urls = str(p.get("본인 사진", "")).split(",")[:4]
     photo_paths = []
 
-    write_log(member_id,f"[디버그] 📸 사진 링크 수집됨: {photo_urls}")
+    write_log(member_id, f"[디버그] 📸 사진 링크 수집됨: {photo_urls}")
 
     for i, url in enumerate(photo_urls):
         try:
@@ -513,9 +548,9 @@ def generate_profile_card_from_sheet(member_id: str):
             temp_img = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
             image.save(temp_img.name)
             photo_paths.append(temp_img.name)
-            write_log(member_id,f"[디버그] ✅ 이미지 {i + 1} 저장: {temp_img.name}")
+            write_log(member_id, f"[디버그] ✅ 이미지 {i + 1} 저장: {temp_img.name}")
         except Exception as e:
-            write_log(member_id,f"[⚠️사진 에러] {url} 처리 실패: {e}")
+            write_log(member_id, f"[⚠️사진 에러] {url} 처리 실패: {e}")
             continue
 
     data = {
@@ -576,7 +611,8 @@ def generate_profile_card_from_sheet(member_id: str):
         creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, scope)
         client = gspread.authorize(creds)
 
-        sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1jnZqqmZB8zWau6CHqxm-L9fxlXDaWxOaJm6uDcE6WN0/edit")
+        sheet = client.open_by_url(
+            "https://docs.google.com/spreadsheets/d/1jnZqqmZB8zWau6CHqxm-L9fxlXDaWxOaJm6uDcE6WN0/edit")
         worksheet = sheet.worksheet("프로필")
         all_values = worksheet.get_all_values()
         headers = all_values[1]  # 2행이 헤더
@@ -593,6 +629,7 @@ def generate_profile_card_from_sheet(member_id: str):
         write_log(member_id, f"❌ 프로필카드 링크 저장 실패: {e}")
 
     return uploaded_id
+
 
 # ---------------------------
 # 매칭 로직
@@ -645,7 +682,7 @@ def match_members(df, match_data):
             filtered = filtered[filtered["본인(키)"].between(min_h, max_h)]
             print(f"키 필터링 후 인원: {filtered}")
     except:
-        write_log(match_data["memberId"],"키 필터 오류")
+        write_log(match_data["memberId"], "키 필터 오류")
         pass
 
     try:
@@ -655,7 +692,7 @@ def match_members(df, match_data):
             print(f"나이 필터링 후 인원: {filtered}")
     except Exception as e:
         print(f"[나이 필터 에러] {e}")
-        write_log(match_data["memberId"],"나이 필터 오류")
+        write_log(match_data["memberId"], "나이 필터 오류")
 
     condition_fields = [
         "이상형(사는 곳)", "이상형(학력)", "이상형(흡연)", "이상형(종교)",
@@ -683,7 +720,7 @@ def match_members(df, match_data):
             filtered = filtered[filtered["설문 날짜"] >= after_date]
             print(f"날짜 필터링 후 인원: {filtered}")
         except:
-            write_log(match_data["memberId"],"날짜 필터링 오류")
+            write_log(match_data["memberId"], "날짜 필터링 오류")
             pass
 
     sent_ids = str(target.get("받은 프로필 목록", "")).split(",") if pd.notna(target.get("받은 프로필 목록")) else []
@@ -693,13 +730,16 @@ def match_members(df, match_data):
 
     return filtered
 
-def get_profile_candidates(member_id, channel, condition_list, member_df):
+
+def get_profile_candidates(member_id, channel, faces, condition_list, member_df):
     match_data = {
         "memberId": member_id,
         "channel": channel,
-        "conditions": condition_list
+        "conditions": condition_list,
+        "faces":faces
     }
     return auto_match_members(member_df, match_data)
+
 
 def get_weighted_top4_ids(df):
     if df.empty:
@@ -714,7 +754,7 @@ def get_weighted_top4_ids(df):
 
 # ✅ 후보 추출 함수 (match_members 참조 버전)
 def auto_match_members(df, match_data):
-    print('auto_match',match_data)
+    print('auto_match', match_data)
     df["회원 ID"] = df["회원 ID"].astype(str).str.strip()
     match_data["memberId"] = str(match_data["memberId"]).strip()
 
@@ -734,17 +774,17 @@ def auto_match_members(df, match_data):
         (filtered["성별"] != target["성별"]) &
         (filtered["상태 FLAG"] >= 4) &
         (~filtered["매칭권"].fillna("").str.contains("시크릿"))
-    ]
+        ]
 
     # 채널 필터
-    if match_data["channel"] and "전체" not in match_data["channel"] :
+    if match_data["channel"] and "전체" not in match_data["channel"]:
         valid_channels = []
         channel_map = {"프립(F)": "F", "네이버(N)": "N", "프사오(O)": "O", "인스타(A)": "A", "기타(B)": "B", "기타2(C)": "C"}
         for ch in match_data["channel"]:
             if ch in channel_map:
                 valid_channels.append(channel_map[ch])
         filtered = filtered[filtered["주문번호"].astype(str).str[0].isin(valid_channels)]
-    print('채널',filtered)
+    print('채널', filtered)
 
     if match_data.get("faces"):
         filtered = filtered[filtered["등급(외모)"].isin(match_data["faces"])]
@@ -794,7 +834,7 @@ def auto_match_members(df, match_data):
 
 def run_multi_matching():
     try:
-        request_df, request_ws = load_sheet_with_ws("테스트용(하태훈)2의 사본")
+        request_df, request_ws = load_sheet_with_ws(sheet_name)
         member_df = load_sheet("회원")
         member_df["회원 ID"] = member_df["회원 ID"].astype(str).str.strip()
 
@@ -806,13 +846,16 @@ def run_multi_matching():
             try:
                 member_id = str(request_ws.acell(f"B{base_row}").value).strip()
                 channel = request_ws.acell(f"C{base_row}").value
+                face_grade_raw = request_ws.acell(f"F{base_row}").value or ""
                 default_cond = request_ws.acell(f"F{base_row}").value or ""
-                override_cond = request_ws.acell(f"G{base_row}").value or ""
+                override_cond = request_ws.acell(f"H{base_row}").value or ""
                 print('id', member_id, channel, default_cond, override_cond)
 
                 if not member_id:
                     print(f"⚠️ B{base_row} 셀에 회원 ID가 없습니다. 건너뜀")
                     continue
+
+                faces = [s.strip() for s in face_grade_raw.split(",") if s.strip()]
 
                 # 조건 파싱
                 condition_str = override_cond if override_cond.strip() else default_cond
@@ -835,28 +878,29 @@ def run_multi_matching():
                 print(f"🧩 조건 Flags: {condition_flags}")
 
                 # 후보 추출
-                candidates_df = get_profile_candidates(member_id, channel, condition_flags, member_df)
+                candidates_df = get_profile_candidates(member_id, channel, faces, condition_flags, member_df)
                 print(f"🔍 후보 수: {len(candidates_df)}명")
 
-                # 전체 후보 ID 리스트 저장 (I열 = col 9)
+                # 전체 후보 ID 리스트 저장 (K열 = col 11)
                 all_ids_str = ",".join(candidates_df["회원 ID"].astype(str).tolist())
-                request_ws.update_cell(base_row, 9, all_ids_str)
+                request_ws.update_cell(base_row, 11, all_ids_str)
                 print(f"✅ 후보 ID 목록 저장 완료: {all_ids_str}")
 
-                # 최종 4명 추출 후 I+1 ~ I+4에 저장
+                # 최종 4명 추출 후 L+1 ~ L+4에 저장
                 top4 = get_weighted_top4_ids(candidates_df)
                 print(f"⭐ 최종 추출된 4명: {top4}")
                 for i, pid in enumerate(top4):
-                    request_ws.update_cell(base_row + i, 10, pid)
+                    request_ws.update_cell(base_row + i, 12, pid)
 
             except Exception as inner_e:
                 print(f"❌ Row {base_row} 처리 중 오류: {inner_e}")
-                write_log(match_data["memberId"],f"❌ Row {base_row} 처리 중 오류: {inner_e}")
+                write_log(match_data["memberId"], f"❌ Row {base_row} 처리 중 오류: {inner_e}")
 
         print("🎉 모든 8명 추출 완료!")
 
     except Exception as e:
         print(f"❌ 전체 처리 실패: {e}")
+
 
 def get_phone_number_by_member_id(member_id: str) -> str:
     member_df = load_sheet("회원")
@@ -915,14 +959,14 @@ if trigger == "multi_matching":
     # ✅ 요청 출처 검증을 위한 토큰 검사
     if token != st.secrets.get("apps_script_token"):  # ✅ secrets.toml에 미리 저장된 토큰
         st.error("⛔ 요청 권한 없음")
-        write_log("","❌ 외부 트리거 거부됨: 유효하지 않은 토큰")
+        write_log("", "❌ 외부 트리거 거부됨: 유효하지 않은 토큰")
         st.stop()
 
     with st.spinner("외부 트리거에 의해 multi matching 실행 중..."):
         run_multi_matching()
-        write_log("","✅ 외부 트리거: 매칭 완료됨")
+        write_log("", "✅ 외부 트리거: 매칭 완료됨")
         st.stop()
-        
+
 if trigger == "watermark":
     # ✅ 요청 출처 검증을 위한 토큰 검사
     if token != st.secrets.get("apps_script_token"):  # ✅ secrets.toml에 미리 저장된 토큰
@@ -931,7 +975,7 @@ if trigger == "watermark":
         st.stop()
     with st.spinner("📄 워터마크 삽입 중..."):
         try:
-            df, ws = load_sheet_with_ws("테스트용(하태훈)2의 사본")
+            df, ws = load_sheet_with_ws(sheet_name)
 
             for base_row in range(3, 32, 4):  # B3, B7, ..., B31
                 member_id = str(ws.acell(f"B{base_row}").value).strip()
@@ -963,7 +1007,6 @@ if trigger == "watermark":
             st.error(f"❌ 전체 워터마크 처리 실패: {e}")
             write_log("", f"❌ 워터마크 처리 중 오류: {e}")
             st.stop()
-
 
 # ---------------------------
 # Streamlit UI
@@ -998,12 +1041,12 @@ elif code and not st.session_state["logged_in"]:
 
     # 응답 그대로 저장
     token_res = requests.post(TOKEN_ENDPOINT, data=data)
-    #st.write(data)
-    #st.write(token_res)
+    # st.write(data)
+    # st.write(token_res)
     try:
         # ✅ JSON 응답 파싱
         token_data = token_res.json()
-        #st.write("🔄 token_res 응답:")
+        # st.write("🔄 token_res 응답:")
         id_token = token_data.get("id_token")
         access_token = token_data.get("access_token")
 
@@ -1055,15 +1098,8 @@ elif code and not st.session_state["logged_in"]:
                         st.error(f"로그인 기록 저장 실패: {e}")
                         write_log(user_email, f"로그인 기록 저장 실패: {e}")
 
-
-
                     st.rerun()
                     ############################# 시작 #########################################
-
-
-
-
-
 
                     ############################## 끝 ################################################
                 else:
@@ -1098,7 +1134,7 @@ else:
             profile_df = load_sheet("프로필")
         except Exception as e:
             st.error("시트를 불러오는 데 실패했습니다: " + str(e))
-            write_log("","시트 로딩 실패")
+            write_log("", "시트 로딩 실패")
             st.stop()
 
         with st.sidebar:
@@ -1185,7 +1221,6 @@ else:
         # 프로필 추출 결과 출력 컨테이너 (항상 아래)
         match_container = st.container()
 
-
         with info_container:
             if st.session_state["member_info_triggered"]:
                 target_member = member_df[member_df["회원 ID"] == memberId]
@@ -1270,7 +1305,7 @@ else:
                                     )
                                 except Exception:
                                     st.warning("이미지 로드 실패")
-                                    write_log("","이미지 로드 실패")
+                                    write_log("", "이미지 로드 실패")
 
                                 uploaded_file = st.file_uploader(f"새 이미지 업로드 {i + 1}", type=["jpg", "jpeg", "png"],
                                                                  key=f"upload_{i}")
@@ -1343,7 +1378,8 @@ else:
                     if st.session_state["match_triggered"]:
                         st.session_state["top_ids"] = top_ids
                         st.session_state["top_rows"] = profile_df[profile_df["회원 ID"].isin(st.session_state["top_ids"])]
-                        st.session_state["matched_profiles"] = profile_df[profile_df["회원 ID"].isin(st.session_state["top_ids"])]
+                        st.session_state["matched_profiles"] = profile_df[
+                            profile_df["회원 ID"].isin(st.session_state["top_ids"])]
 
                     st.markdown("---")
                     st.subheader("🛠️ 추출된 프로필 관리")
@@ -1356,12 +1392,14 @@ else:
                         else:
                             score_values = available_df["보내진 횟수"].fillna(0).astype(float)
                             weights = 1 / (score_values + 1)
-                            new_top_ids = available_df.sample(n=min(4, len(available_df)), weights=weights, random_state=None)[
+                            new_top_ids = \
+                            available_df.sample(n=min(4, len(available_df)), weights=weights, random_state=None)[
                                 "회원 ID"].tolist()
                             st.session_state["top_ids"] = new_top_ids
 
                             # ✅ 추가: top_rows, matched_profiles 갱신!
-                            st.session_state["top_rows"] = member_df[member_df["회원 ID"].isin(st.session_state["top_ids"])]
+                            st.session_state["top_rows"] = member_df[
+                                member_df["회원 ID"].isin(st.session_state["top_ids"])]
                             st.session_state["matched_profiles"] = profile_df[
                                 profile_df["회원 ID"].isin(st.session_state["top_ids"])]
 
@@ -1392,10 +1430,10 @@ else:
                             if updated:
                                 st.success("✅ 입력된 ID로 프로필 교체를 완료했습니다.")
                                 # ✅ top_rows, matched_profiles 갱신!!
-                                st.session_state["top_rows"] = member_df[member_df["회원 ID"].isin(st.session_state["top_ids"])]
+                                st.session_state["top_rows"] = member_df[
+                                    member_df["회원 ID"].isin(st.session_state["top_ids"])]
                                 st.session_state["matched_profiles"] = profile_df[
                                     profile_df["회원 ID"].isin(st.session_state["top_ids"])]
-
 
                     # 프로필 표시 부분
                     top_rows = st.session_state.get("top_rows", pd.DataFrame())
@@ -1444,7 +1482,7 @@ else:
                                             )
                                         except Exception as e:
                                             st.warning(f"이미지 로드 실패: {e}")
-                                            write_log("",f"이미지 로드 실패: {e}")
+                                            write_log("", f"이미지 로드 실패: {e}")
                                     else:
                                         st.warning("유효하지 않은 이미지 링크입니다.")
 
@@ -1550,6 +1588,7 @@ else:
                 ws_memo.update_cell(next_row, 2, memo_content)
                 ws_memo.update_cell(next_row, 3, now_str)
 
+
         # ✅ 메모 불러오기 함수
         def load_memo_from_sheet(user_id):
             df_memo, ws_memo = connect_sheet("메모")
@@ -1558,6 +1597,7 @@ else:
                 return user_rows.iloc[0]["메모"]
             else:
                 return ""
+
 
         st.subheader("📝 메모장")
 
