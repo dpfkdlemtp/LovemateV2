@@ -946,6 +946,7 @@ def process_and_upload_watermarked_pdf(member_id, source_url, save_name, target_
 
         # 4. 워터마크 적용된 PDF 생성
         add_watermark_to_pdf(input_pdf, output_pdf, watermark_pdf)
+        write_log(member_id,"워터마크 pdf 생성 성공")
 
         # 5. Google Drive 업로드
         uploaded_id = upload_file_to_drive(output_pdf, save_name, target_folder_id)
