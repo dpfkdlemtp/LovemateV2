@@ -1742,7 +1742,7 @@ else:
             st.success("✅ 메모가 저장되었습니다.")
 
     with tab5:
-        st.header("📝 회원 메모 작성 (자동 저장 + 수동 저장)")
+        st.header("📝 회원 메모 작성")
 
         member_id_input = st.text_input("회원 ID를 입력하세요", "")
 
@@ -1757,7 +1757,7 @@ else:
 
             # ✅ 메모 입력창
             new_memo = st.text_area(
-                "회원 메모 (자동 저장 및 수동 저장 지원)",
+                "회원 메모",
                 st.session_state[session_key],
                 height=200,
                 key=f"textarea_{member_id_input}"
@@ -1781,7 +1781,7 @@ else:
             # ✅ 수동 저장 버튼
             if st.button("💾 메모 저장"):
                 if save_profile_memo(member_id_input, new_memo):
-                    st.success("✅ 수동 저장 완료")
+                    st.success("✅ 저장 완료")
                     write_log(member_id_input, "프로필 메모 수동 저장됨")
                     st.session_state[f"{session_key}_last_saved"] = time.time()
 
