@@ -1742,38 +1742,48 @@ else:
             st.success("✅ 메모가 저장되었습니다.")
 
     with tab5:
-        st.header("📝 회원 메모 작성 (자동 저장)")
+        st.header("📝 회원 메모 작성 (자동 저장 + 수동 저장)")
 
         member_id_input = st.text_input("회원 ID를 입력하세요", "")
 
         if member_id_input:
             session_key = f"memo_{member_id_input}"
 
-            # 최초 입력 시 세션 상태에 메모 초기화
+            # ✅ 세션 상태 초기화
             if session_key not in st.session_state:
                 st.session_state[session_key] = get_profile_memo(member_id_input)
                 st.session_state[f"{session_key}_last_saved"] = time.time()
                 st.session_state[f"{session_key}_last_input"] = time.time()
 
-            # 메모 입력 UI
-            new_memo = st.text_area("회원 메모 (자동 저장됩니다)", st.session_state[session_key], height=200,
-                                    key=f"textarea_{member_id_input}")
+            # ✅ 메모 입력창
+            new_memo = st.text_area(
+                "회원 메모 (자동 저장 및 수동 저장 지원)",
+                st.session_state[session_key],
+                height=200,
+                key=f"textarea_{member_id_input}"
+            )
 
-            # 입력 변경 감지
+            # ✅ 입력 변경 감지
             if new_memo != st.session_state[session_key]:
                 st.session_state[session_key] = new_memo
                 st.session_state[f"{session_key}_last_input"] = time.time()
 
-            # 입력 후 일정 시간 지나면 자동 저장
+            # ✅ 자동 저장 조건
             now = time.time()
             last_input = st.session_state.get(f"{session_key}_last_input", 0)
             last_saved = st.session_state.get(f"{session_key}_last_saved", 0)
-
-            if now - last_input >= AUTO_SAVE_INTERVAL and last_input > last_saved:
+            if now - last_input >= 10 and last_input > last_saved:
                 if save_profile_memo(member_id_input, new_memo):
-                    st.toast("✅ 자동 저장 완료!", icon="💾")
-                    write_log(member_id_input, "회원 메모 자동 저장됨")
+                    st.toast("✅ 자동 저장 완료", icon="💾")
+                    write_log(member_id_input, "프로필 메모 자동 저장됨")
                     st.session_state[f"{session_key}_last_saved"] = now
+
+            # ✅ 수동 저장 버튼
+            if st.button("💾 메모 저장"):
+                if save_profile_memo(member_id_input, new_memo):
+                    st.success("✅ 수동 저장 완료")
+                    write_log(member_id_input, "프로필 메모 수동 저장됨")
+                    st.session_state[f"{session_key}_last_saved"] = time.time()
 
     with tab6:
         st.subheader("📇 회원 ID로 프로필카드 생성")
