@@ -45,7 +45,7 @@ st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
 params = dict(st.query_params)
 trigger = params.get("trigger", [None])
 token = params.get("token", [None])
-sheet_name = params.get("sheet_name", ["멀티매칭"])  # 기본값 설정
+sheet_name = params.get("sheet_name", [None])  # 기본값 설정
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "메모장", "프로필카드 생성"])
 
@@ -884,9 +884,20 @@ def run_multi_matching():
                 print(f"🔍 후보 수: {len(candidates_df)}명")
 
                 # 전체 후보 ID 리스트 저장 (K열 = col 11)
-                all_ids_str = ",".join(candidates_df["회원 ID"].astype(str).tolist())
-                request_ws.update_cell(base_row, 11, all_ids_str)
-                print(f"✅ 후보 ID 목록 저장 완료: {all_ids_str}")
+                # 등급별로 ID 그룹화
+                grouped = candidates_df.groupby("등급(외모)")["회원 ID"].apply(
+                    lambda ids: ",".join(ids.astype(str))).to_dict()
+
+                # 출력할 등급 순서 정의
+                face_order = ["상", "중상", "중", "중하", "하"]
+                formatted_str = ""
+                for grade in face_order:
+                    if grade in grouped:
+                        formatted_str += f"[{grade}]\n{grouped[grade]}\n\n"
+
+                # K열 업데이트
+                request_ws.update_cell(base_row, 11, formatted_str.strip())
+                print(f"✅ 후보 ID 목록 저장 완료: {formatted_str}")
 
                 # 최종 4명 추출 후 L+1 ~ L+4에 저장
                 top4 = get_weighted_top4_ids(candidates_df)
