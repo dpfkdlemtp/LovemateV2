@@ -38,6 +38,7 @@ import pandas as pd
 from datetime import datetime
 from urllib.parse import urlencode
 from urllib.parse import urlparse, parse_qs
+import pytz
 
 st.set_page_config(page_title="회원 매칭 시스템", layout="wide")
 
@@ -154,7 +155,8 @@ def write_log(member_id: str = "", message: str = ""):
         action = outer_frame.function
 
         # ✅ Timestamp
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        kst = pytz.timezone("Asia/Seoul")
+        now = datetime.now(kst).strftime("%Y-%m-%d %H:%M:%S")
 
         # ✅ Google Sheet에 기록
         _, ws = connect_sheet("로그")
