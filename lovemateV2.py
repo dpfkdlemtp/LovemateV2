@@ -929,9 +929,11 @@ def process_and_upload_watermarked_pdf(member_id, source_url, save_name, target_
     import os
 
     try:
+        write_log(member_id, "start")
         # 🔍 회원 ID로 휴대폰 번호 조회
         phone_number = get_phone_number_by_member_id(member_id)
-
+        write_log(member_id, "phone_number")
+        
         # 1. 임시 파일 생성
         input_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
         watermark_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
