@@ -47,7 +47,7 @@ trigger = params.get("trigger", [None])
 token = params.get("token", [None])
 sheet_name = params.get("sheet_name", [None])  # 기본값 설정
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "메모장", "프로필카드 생성"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["회원 매칭", "발송 필요 회원", "사진 보기", "작업자 메모장", "회원 메모장", "프로필카드 생성"])
 
 
 # # ✅ 세션 기본 설정 (로그인 생략용 테스트)
@@ -649,6 +649,7 @@ def generate_profile_card_from_sheet(member_id: str):
 # ---------------------------
 # 매칭 로직
 # ---------------------------
+
 def match_members(df, match_data):
     target_df = df[df["회원 ID"] == match_data["memberId"]]
     if target_df.empty:
@@ -765,6 +766,42 @@ def get_weighted_top4_ids(df):
         return df.sample(n=min(4, len(df)), weights=weights, random_state=42)["회원 ID"].tolist()
     else:
         return df.head(4)["회원 ID"].tolist()
+
+def get_custom_face_top4(df, my_face_grade):
+    face_column = "등급(외모)"
+    df[face_column] = df[face_column].astype(str).str.strip()
+    selected_ids = []
+
+    def weighted_sample(group_df, n):
+        if group_df.empty:
+            return []
+        weights = 1 / (group_df["보내진 횟수"].fillna(0).astype(float) + 1)
+        return group_df.sample(n=min(n, len(group_df)), weights=weights, random_state=42)["회원 ID"].tolist()
+
+    if my_face_grade == "상":
+        selected_ids += weighted_sample(df[df[face_column] == "상"], 2)
+        mid_df = df[df[face_column].isin(["중상", "중"])]
+        selected_ids += weighted_sample(mid_df, 2)
+
+    elif my_face_grade in ["중상", "중"]:
+        selected_ids += weighted_sample(df[df[face_column] == "상"], 1)
+        mid_df = df[df[face_column].isin(["중상", "중"])]
+        selected_ids += weighted_sample(mid_df, 3)
+
+    elif my_face_grade == "중하":
+        selected_ids += weighted_sample(df[df[face_column] == "중상"], 1)
+        mid_df = df[df[face_column].isin(["중", "중하"])]
+        selected_ids += weighted_sample(mid_df, 2)
+        selected_ids += weighted_sample(df[df[face_column] == "하"], 1)
+
+    elif my_face_grade == "하":
+        selected_ids += weighted_sample(df[df[face_column] == "중"], 1)
+        selected_ids += weighted_sample(df[df[face_column] == "중하"], 1)
+        selected_ids += weighted_sample(df[df[face_column] == "하"], 2)
+
+    # 혹시 4명이 안 뽑혔을 경우 대비
+    selected_ids = selected_ids[:4]
+    return selected_ids
 
 
 # ✅ 후보 추출 함수 (match_members 참조 버전)
@@ -913,8 +950,13 @@ def run_multi_matching():
                 print(f"✅ 후보 ID 목록 저장 완료: {formatted_str}")
 
                 # 최종 4명 추출 후 L+1 ~ L+4에 저장
-                top4 = get_weighted_top4_ids(candidates_df)
+                if not faces:  # 외모조건 미선택 시
+                    my_face_grade = member_df[member_df["회원 ID"] == member_id]["등급(외모)"].values[0]
+                    top4 = get_custom_face_top4(candidates_df, my_face_grade)
+                else:
+                    top4 = get_weighted_top4_ids(candidates_df)
                 print(f"⭐ 최종 추출된 4명: {top4}")
+
                 for i, pid in enumerate(top4):
                     request_ws.update_cell(base_row + i, 12, pid)
 
@@ -935,6 +977,33 @@ def get_phone_number_by_member_id(member_id: str) -> str:
     if not row.empty:
         return row.iloc[0].get("휴대폰번호", "010-0000-0000")
     return "010-0000-0000"
+
+# ✅ 여기에 추가!
+def get_profile_memo(member_id):
+    df, _ = load_sheet_with_ws("프로필")
+    df["회원 ID"] = df["회원 ID"].astype(str).strip()
+    row = df[df["회원 ID"] == str(member_id).strip()]
+    if not row.empty:
+        return row.iloc[0].get("메모", "")
+    return ""
+
+def save_profile_memo(member_id, new_memo):
+    _, ws = load_sheet_with_ws("프로필")
+    all_values = ws.get_all_values()
+    headers = all_values[1]
+    data = all_values[2:]
+
+    if "회원 ID" not in headers or "메모" not in headers:
+        return False
+
+    id_idx = headers.index("회원 ID")
+    memo_idx = headers.index("메모")
+
+    for i, row in enumerate(data):
+        if row[id_idx].strip() == member_id.strip():
+            ws.update_cell(i + 3, memo_idx + 1, new_memo)
+            return True
+    return False
 
 
 def process_and_upload_watermarked_pdf(member_id, source_url, save_name, target_folder_id):
@@ -1649,7 +1718,7 @@ else:
                 return ""
 
 
-        st.subheader("📝 메모장")
+        st.subheader("📝 작업자 메모장")
 
         # ✅ 로그인한 사용자 ID
         user_id = st.session_state["user_id"]
@@ -1672,6 +1741,22 @@ else:
             st.success("✅ 메모가 저장되었습니다.")
 
     with tab5:
+        st.header("📝 회원 메모 작성")
+
+        member_id_input = st.text_input("회원 ID를 입력하세요", "")
+        if member_id_input:
+            existing_memo = get_profile_memo(member_id_input)
+            new_memo = st.text_area("회원 메모", existing_memo, height=200)
+
+            if st.button("💾 메모 저장"):
+                success = save_profile_memo(member_id_input, new_memo)
+                if success:
+                    st.success("✅ 메모가 성공적으로 저장되었습니다.")
+                    write_log(member_id_input, "프로필 메모 저장 완료")
+                else:
+                    st.error("❌ 저장 실패: 회원 ID 또는 메모 열을 찾을 수 없습니다.")
+
+    with tab6:
         st.subheader("📇 회원 ID로 프로필카드 생성")
 
         member_id_input = st.text_input("회원 ID 입력", key="profilecard_input")
