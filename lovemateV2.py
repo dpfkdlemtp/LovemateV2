@@ -940,9 +940,11 @@ def process_and_upload_watermarked_pdf(member_id, source_url, save_name, target_
         # 2. 원본 PDF 다운로드
         from urllib.request import urlretrieve
         urlretrieve(source_url, input_pdf)
+        write_log(member_id, "Download")
 
         # 3. 워터마크 PDF 생성 (📱 휴대폰 번호 사용)
         create_watermark(phone_number, watermark_pdf)
+        write_log(member_id, "Create")
 
         # 4. 워터마크 적용된 PDF 생성
         add_watermark_to_pdf(input_pdf, output_pdf, watermark_pdf)
