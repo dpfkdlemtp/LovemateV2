@@ -928,6 +928,7 @@ def process_and_upload_watermarked_pdf(member_id, source_url, save_name, target_
     import tempfile
     import os
 
+    write_log(member_id, f"{source_url}, {save_name}, {target_folder_id}")
     try:
         write_log(member_id, "start")
         # 🔍 회원 ID로 휴대폰 번호 조회
@@ -941,7 +942,7 @@ def process_and_upload_watermarked_pdf(member_id, source_url, save_name, target_
         write_log(member_id, "2")
         output_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
         write_log(member_id, "3")
-        
+
 
         # 2. 원본 PDF 다운로드
         from urllib.request import urlretrieve
