@@ -519,6 +519,19 @@ def upload_file_to_drive(file_path, filename, folder_id):
         ).execute()
         return uploaded['id']
 
+def download_pdf_from_drive(file_id, output_path):
+    scopes = ['https://www.googleapis.com/auth/drive.readonly']
+    key_dict = load_google_service_account_key()
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, scopes)
+    service = build('drive', 'v3', credentials=creds)
+
+    request = service.files().get_media(fileId=file_id)
+    fh = io.FileIO(output_path, mode='wb')
+    downloader = MediaIoBaseDownload(fh, request)
+
+    done = False
+    while not done:
+        status, done = downloader.next_chunk()
 
 def generate_profile_card_from_sheet(member_id: str):
     member_df = load_sheet("회원")
@@ -928,25 +941,20 @@ def process_and_upload_watermarked_pdf(member_id, source_url, save_name, target_
     import tempfile
     import os
 
-    write_log(member_id, f"{source_url}, {save_name}, {target_folder_id}")
+    write_log(member_id, f"make watermark {source_url}, {save_name}, {target_folder_id}")
     try:
-        write_log(member_id, "start")
         # 🔍 회원 ID로 휴대폰 번호 조회
         phone_number = get_phone_number_by_member_id(member_id)
-        write_log(member_id, "phone_number")
 
         # 1. 임시 파일 생성
         input_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
-        write_log(member_id, "1")
         watermark_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
-        write_log(member_id, "2")
         output_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
-        write_log(member_id, "3")
 
 
         # 2. 원본 PDF 다운로드
-        from urllib.request import urlretrieve
-        urlretrieve(source_url, input_pdf)
+        source_id = extract_drive_file_id(source_url)
+        download_pdf_from_drive(source_id, input_pdf)
         write_log(member_id, "Download")
 
         # 3. 워터마크 PDF 생성 (📱 휴대폰 번호 사용)
