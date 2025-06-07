@@ -623,7 +623,7 @@ def generate_profile_card_from_sheet(member_id: str):
         for idx, row in enumerate(data_rows):
             if str(row[headers.index("회원 ID")]).strip() == str(member_id).strip():
                 row_num = idx + 3  # 실제 시트 행 번호
-                col_num = headers.index("프로필카드") + 1 if "프로필카드" in headers else 51  # AY열 기본값
+                col_num = headers.index("프로필 카드") + 1 if "프로필 카드" in headers else 52  # AY열 기본값
                 worksheet.update_cell(row_num, col_num, pdf_url)
                 write_log(member_id, f"✅ 프로필카드 링크 저장 완료: {pdf_url}")
                 break
