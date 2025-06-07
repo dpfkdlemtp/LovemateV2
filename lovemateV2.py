@@ -1003,8 +1003,9 @@ if trigger == "watermark":
 
                 for i in range(4):
                     try:
-                        pid = batch_values[i][0]  # L열 (회원ID)
-                        source_link = batch_values[i][8]  # T열 (프로필카드 링크)
+                        row = batch_values[i] if i < len(batch_values) else []
+                        pid = row[0] if len(row) > 0 else ""
+                        source_link = row[8] if len(row) > 8 else ""
 
                         if not pid or not source_link:
                             continue
@@ -1020,10 +1021,9 @@ if trigger == "watermark":
                         else:
                             updates.append([""])
                             write_log(member_id, f"❌ 워터마크 실패 ({pid})")
-
                     except Exception as e:
                         updates.append([""])
-                        write_log(member_id, f"❌ 오류 ({pid}): {e}")
+                        write_log(member_id, f"❌ 오류 ({pid if 'pid' in locals() else '?'}): {e}")
 
                 # ✅ 한번에 U열에 결과 저장
                 if updates:
