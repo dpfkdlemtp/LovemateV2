@@ -995,24 +995,40 @@ if trigger == "watermark":
                 if not member_id:
                     continue
 
-                for i in range(4):  # J열 ~ S열 ~ T열
-                    pid = str(ws.acell(f"J{base_row + i}").value).strip()
-                    source_link = str(ws.acell(f"S{base_row + i}").value).strip()
+                # 🔁 J열~S열 데이터 한 번에 읽기 (J~S: 10~19열)
+                cell_range = f"L{base_row}:U{base_row + 3}"
+                batch_values = ws.get_values(cell_range) # .strip()?
 
-                    if pid and source_link:
+                updates = []  # batch_update용
+
+                for i in range(4):
+                    try:
+                        pid = batch_values[i][0]  # L열 (회원ID)
+                        source_link = batch_values[i][8]  # T열 (프로필카드 링크)
+
+                        if not pid or not source_link:
+                            continue
+
                         source_id = extract_drive_file_id(source_link)
                         new_name = f"{member_id}_프로필카드_{pid}.pdf"
-                        folder_id = "104l4k5PPO25thz919Gi4241_IQ_MSsfe"  # ✅ 실제 업로드 폴더 ID
+                        folder_id = "104l4k5PPO25thz919Gi4241_IQ_MSsfe"
 
-                        try:
-                            new_link = process_and_upload_watermarked_pdf(member_id, source_link, new_name, folder_id)
-                            if new_link:
-                                ws.update_cell(base_row + i, 20, new_link)  # T열
-                                write_log(member_id, f"✅ 워터마크 완료 ({pid}) → 링크 저장됨")
-                            else:
-                                write_log(member_id, f"❌ 워터마크 실패 ({pid})")
-                        except Exception as e:
-                            write_log(member_id, f"❌ 오류 ({pid}): {e}")
+                        new_link = process_and_upload_watermarked_pdf(member_id, source_link, new_name, folder_id)
+                        if new_link:
+                            updates.append([new_link])
+                            write_log(member_id, f"✅ 워터마크 완료 ({pid}) → 링크 준비 완료")
+                        else:
+                            updates.append([""])
+                            write_log(member_id, f"❌ 워터마크 실패 ({pid})")
+
+                    except Exception as e:
+                        updates.append([""])
+                        write_log(member_id, f"❌ 오류 ({pid}): {e}")
+
+                # ✅ 한번에 U열에 결과 저장
+                if updates:
+                    ws.update(f"U{base_row}:U{base_row + len(updates) - 1}", updates)
+
             write_log("", "✅ 외부 트리거: 워터마크 완료됨")
             st.success("✅ 모든 워터마크 처리 완료")
             st.stop()
@@ -1020,6 +1036,9 @@ if trigger == "watermark":
             st.error(f"❌ 전체 워터마크 처리 실패: {e}")
             write_log("", f"❌ 워터마크 처리 중 오류: {e}")
             st.stop()
+
+
+
 
 # ---------------------------
 # Streamlit UI
