@@ -899,7 +899,7 @@ def run_multi_matching():
                 member_id = str(request_ws.acell(f"B{base_row}").value).strip()
                 channel = request_ws.acell(f"C{base_row}").value
                 face_grade_raw = request_ws.acell(f"F{base_row}").value or ""
-                default_cond = request_ws.acell(f"F{base_row}").value or ""
+                default_cond = request_ws.acell(f"G{base_row}").value or ""
                 override_cond = request_ws.acell(f"H{base_row}").value or ""
                 print('id', member_id, channel, default_cond, override_cond)
 
