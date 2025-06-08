@@ -163,7 +163,7 @@ def write_log(member_id: str = "", message: str = ""):
         row = [now, login_id, member_id, action, message]
         ws.append_row(row)
     except Exception as e:
-        print(f"[로그 기록 실패] {e}")
+        write_log("",f"[로그 기록 실패] {e}")
 
 
 write_log("", f"📩 트리거 요청 감지 : trigger={trigger}, token={token}, sheet_name={sheet_name}")
@@ -186,11 +186,11 @@ def create_account_sheet():
     sheet_name = "계정정보"
     try:
         worksheet = sheet.worksheet(sheet_name)
-        print(f"✅ 시트 '{sheet_name}'이 이미 존재합니다.")
+        write_log("",f"✅ 시트 '{sheet_name}'이 이미 존재합니다.")
     except gspread.exceptions.WorksheetNotFound:
         worksheet = sheet.add_worksheet(title=sheet_name, rows="100", cols="3")
         worksheet.update("A1:C1", [["이메일", "PW", "마지막 로그인 시간"]])
-        print(f"🆕 시트 '{sheet_name}'이 새로 생성되었습니다.")
+        write_log("",f"🆕 시트 '{sheet_name}'이 새로 생성되었습니다.")
 
     return worksheet
 
@@ -503,14 +503,14 @@ def upload_file_to_drive(file_path, filename, folder_id):
 
     if files:
         file_id = files[0]['id']
-        print(f"♻ 기존 파일 덮어쓰기: {filename}")
+        write_log("",f"♻ 기존 파일 덮어쓰기: {filename}")
         updated = service.files().update(
             fileId=file_id,
             media_body=media
         ).execute()
         return updated['id']
     else:
-        print(f"🆕 새 파일 업로드: {filename}")
+        write_log("",f"🆕 새 파일 업로드: {filename}")
         file_metadata = {'name': filename, 'parents': [folder_id]}
         uploaded = service.files().create(
             body=file_metadata,
@@ -668,7 +668,7 @@ def match_members(df, match_data):
         (filtered["상태 FLAG"] >= 4) &
         (~filtered["매칭권"].fillna("").str.contains("시크릿"))
         ]
-    print(f"1차 필터링 후 인원: {filtered}")
+    write_log("",f"1차 필터링 후 인원: {filtered}")
 
     # 채널 필터
     if match_data["channel"] and match_data["channel"] != ["전체"]:
@@ -678,25 +678,25 @@ def match_members(df, match_data):
             if ch in channel_map:
                 valid_channels.append(channel_map[ch])
         filtered = filtered[filtered["주문번호"].astype(str).str[0].isin(valid_channels)]
-    print(f"채널 필터링 후 인원: {filtered}")
+    write_log("",f"채널 필터링 후 인원: {filtered}")
 
     if match_data["faces"]:
         filtered = filtered[filtered["등급(외모)"].isin(match_data["faces"])]
-        print(f"등급(외모) 필터링 후 인원: {filtered}")
+        write_log("",f"등급(외모) 필터링 후 인원: {filtered}")
 
     if match_data["abilitys"]:
         filtered = filtered[filtered["등급(능력)"].isin(match_data["abilitys"])]
-        print(f"등급(능력) 필터링 후 인원: {filtered}")
+        write_log("",f"등급(능력) 필터링 후 인원: {filtered}")
 
     if match_data["faceShape"] and match_data["faceShape"] != ["전체"]:
         filtered = filtered[filtered["본인(외모)"].isin(match_data["faceShape"])]
-        print(f"얼굴상 필터링 후 인원: {filtered}")
+        write_log("",f"얼굴상 필터링 후 인원: {filtered}")
     cond = match_data["conditions"]
     try:
         if cond[0]:
             min_h, max_h = sorted(map(int, str(target["이상형(키)"]).replace(" ", "").split("~")))
             filtered = filtered[filtered["본인(키)"].between(min_h, max_h)]
-            print(f"키 필터링 후 인원: {filtered}")
+            write_log("",f"키 필터링 후 인원: {filtered}")
     except:
         write_log(match_data["memberId"], "키 필터 오류")
         pass
@@ -705,9 +705,9 @@ def match_members(df, match_data):
         if cond[1]:
             min_y, max_y = sorted(map(int, str(target["이상형(나이)"]).replace(" ", "").split("~")))
             filtered = filtered[filtered["본인(나이)"].between(min_y, max_y)]
-            print(f"나이 필터링 후 인원: {filtered}")
+            write_log("",f"나이 필터링 후 인원: {filtered}")
     except Exception as e:
-        print(f"[나이 필터 에러] {e}")
+        write_log("",f"[나이 필터 에러] {e}")
         write_log(match_data["memberId"], "나이 필터 오류")
 
     condition_fields = [
@@ -725,16 +725,16 @@ def match_members(df, match_data):
             if ideals_raw.strip():
                 ideals = set(map(str.strip, ideals_raw.split(',')))
                 filtered = filtered[filtered[profile_fields[i - 2]].isin(ideals)]
-                print(f"{profile_fields[i - 2]} 기준 {ideals} 필터링 후 인원: {filtered}")
+                write_log("",f"{profile_fields[i - 2]} 기준 {ideals} 필터링 후 인원: {filtered}")
             else:
-                print(f"{profile_fields[i - 2]} 조건 비어있음 → 필터 생략")
+                write_log("",f"{profile_fields[i - 2]} 조건 비어있음 → 필터 생략")
 
     if match_data["afterDate"]:
         try:
             after_date = pd.to_datetime(match_data["afterDate"])
             filtered["설문 날짜"] = pd.to_datetime(filtered["설문 날짜"], errors="coerce")
             filtered = filtered[filtered["설문 날짜"] >= after_date]
-            print(f"날짜 필터링 후 인원: {filtered}")
+            write_log("",f"날짜 필터링 후 인원: {filtered}")
         except:
             write_log(match_data["memberId"], "날짜 필터링 오류")
             pass
@@ -742,7 +742,7 @@ def match_members(df, match_data):
     sent_ids = str(target.get("받은 프로필 목록", "")).split(",") if pd.notna(target.get("받은 프로필 목록")) else []
     sent_ids_set = set(map(str.strip, sent_ids))
     filtered = filtered[~filtered["회원 ID"].astype(str).isin(sent_ids_set)]
-    print(f"받은 프로필 필터링 후 인원: {filtered}")
+    write_log("",f"받은 프로필 필터링 후 인원: {filtered}")
 
     return filtered
 
@@ -806,7 +806,7 @@ def get_custom_face_top4(df, my_face_grade):
 
 # ✅ 후보 추출 함수 (match_members 참조 버전)
 def auto_match_members(df, match_data):
-    print('auto_match', match_data)
+    write_log("",'auto_match', match_data)
     df["회원 ID"] = df["회원 ID"].astype(str).str.strip()
     match_data["memberId"] = str(match_data["memberId"]).strip()
 
@@ -836,7 +836,7 @@ def auto_match_members(df, match_data):
             if ch in channel_map:
                 valid_channels.append(channel_map[ch])
         filtered = filtered[filtered["주문번호"].astype(str).str[0].isin(valid_channels)]
-    print('채널', filtered)
+    write_log("",'채널', filtered)
 
     if match_data.get("faces"):
         filtered = filtered[filtered["등급(외모)"].isin(match_data["faces"])]
@@ -893,7 +893,7 @@ def run_multi_matching():
         row_indices = list(range(3, 32, 4))  # B3, B7, ..., B31
 
         for base_row in row_indices:
-            print(f"🔄 처리 중: Row {base_row}")
+            write_log("",f"🔄 처리 중: Row {base_row}")
 
             try:
                 member_id = str(request_ws.acell(f"B{base_row}").value).strip()
@@ -901,10 +901,10 @@ def run_multi_matching():
                 face_grade_raw = request_ws.acell(f"F{base_row}").value or ""
                 default_cond = request_ws.acell(f"G{base_row}").value or ""
                 override_cond = request_ws.acell(f"H{base_row}").value or ""
-                print('id', member_id, channel, default_cond, override_cond)
+                write_log("",'id', member_id, channel, default_cond, override_cond)
 
                 if not member_id:
-                    print(f"⚠️ B{base_row} 셀에 회원 ID가 없습니다. 건너뜀")
+                    write_log("",f"⚠️ B{base_row} 셀에 회원 ID가 없습니다. 건너뜀")
                     continue
 
                 faces = [s.strip() for s in face_grade_raw.split(",") if s.strip()]
@@ -925,13 +925,13 @@ def run_multi_matching():
                 condition_names = ["키", "나이", "거주지", "학력", "흡연", "종교", "회사 규모", "근무 형태", "음주", "문신"]
                 condition_flags = [name in normalized for name in condition_names]
 
-                print(f"🧩 조건: {condition_list}")
-                print(f"🧩 정규화 조건: {normalized}")
-                print(f"🧩 조건 Flags: {condition_flags}")
+                write_log("",f"🧩 조건: {condition_list}")
+                write_log("",f"🧩 정규화 조건: {normalized}")
+                write_log("",f"🧩 조건 Flags: {condition_flags}")
 
                 # 후보 추출
                 candidates_df = get_profile_candidates(member_id, channel, faces, condition_flags, member_df)
-                print(f"🔍 후보 수: {len(candidates_df)}명")
+                write_log("",f"🔍 후보 수: {len(candidates_df)}명")
 
                 # 전체 후보 ID 리스트 저장 (K열 = col 11)
                 # 등급별로 ID 그룹화
@@ -947,7 +947,7 @@ def run_multi_matching():
 
                 # K열 업데이트
                 request_ws.update_cell(base_row, 11, formatted_str.strip())
-                print(f"✅ 후보 ID 목록 저장 완료: {formatted_str}")
+                write_log("",f"✅ 후보 ID 목록 저장 완료: {formatted_str}")
 
                 # 최종 4명 추출 후 L+1 ~ L+4에 저장
                 if not faces:  # 외모조건 미선택 시
@@ -955,19 +955,19 @@ def run_multi_matching():
                     top4 = get_custom_face_top4(candidates_df, my_face_grade)
                 else:
                     top4 = get_weighted_top4_ids(candidates_df)
-                print(f"⭐ 최종 추출된 4명: {top4}")
+                write_log("",f"⭐ 최종 추출된 4명: {top4}")
 
                 for i, pid in enumerate(top4):
                     request_ws.update_cell(base_row + i, 12, pid)
 
             except Exception as inner_e:
-                print(f"❌ Row {base_row} 처리 중 오류: {inner_e}")
+                write_log("",f"❌ Row {base_row} 처리 중 오류: {inner_e}")
                 write_log(match_data["memberId"], f"❌ Row {base_row} 처리 중 오류: {inner_e}")
 
-        print("🎉 모든 8명 추출 완료!")
+        write_log("","🎉 모든 8명 추출 완료!")
 
     except Exception as e:
-        print(f"❌ 전체 처리 실패: {e}")
+        write_log("",f"❌ 전체 처리 실패: {e}")
 
 
 def get_phone_number_by_member_id(member_id: str) -> str:
