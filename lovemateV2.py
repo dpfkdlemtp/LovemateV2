@@ -903,6 +903,17 @@ def run_multi_matching():
                 override_cond = request_ws.acell(f"H{base_row}").value or ""
                 print('id', member_id, channel, default_cond, override_cond)
 
+                default_cond_list = [c.strip() for c in default_cond.split(",") if c.strip()]
+
+                # 나이, 거주지 조건이 없으면 자동 추가
+                if "나이" not in default_cond_list:
+                    default_cond_list.append("나이")
+                if "거주지" not in default_cond_list:
+                    default_cond_list.append("거주지")
+
+                # 다시 문자열로 결합
+                default_cond = ", ".join(default_cond_list)
+
                 if not member_id:
                     print(f"⚠️ B{base_row} 셀에 회원 ID가 없습니다. 건너뜀")
                     continue
