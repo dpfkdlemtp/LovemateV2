@@ -827,6 +827,7 @@ def auto_match_members(df, match_data):
         (filtered["상태 FLAG"] >= 4) &
         (~filtered["매칭권"].fillna("").str.contains("시크릿"))
         ]
+    print('성별,상태,매칭권 필터링 후 : ', filtered)
 
     # 채널 필터
     if match_data["channel"] and "전체" not in match_data["channel"]:
@@ -836,16 +837,19 @@ def auto_match_members(df, match_data):
             if ch in channel_map:
                 valid_channels.append(channel_map[ch])
         filtered = filtered[filtered["주문번호"].astype(str).str[0].isin(valid_channels)]
-    print('채널', filtered)
+    print('채널 필터링 후 : ', filtered)
 
     if match_data.get("faces"):
         filtered = filtered[filtered["등급(외모)"].isin(match_data["faces"])]
+        print("외모 필터링 후 : ", filtered)
 
     if match_data.get("abilitys"):
         filtered = filtered[filtered["등급(능력)"].isin(match_data["abilitys"])]
+        print("능력 필터링 후 : ", filtered)
 
     if match_data.get("faceShape") and match_data["faceShape"] != ["전체"]:
         filtered = filtered[filtered["본인(외모)"].isin(match_data["faceShape"])]
+        print("얼굴상 필터링 후 : ", filtered)
 
     condition_fields = [
         "이상형(키)", "이상형(나이)", "이상형(사는 곳)", "이상형(학력)", "이상형(흡연)",
@@ -870,6 +874,12 @@ def auto_match_members(df, match_data):
                 min_val, max_val = sorted(map(int, ideal_value.replace(" ", "").split("~")))
                 filtered[profile_fields[i]] = pd.to_numeric(filtered[profile_fields[i]], errors="coerce")
                 filtered = filtered[filtered[profile_fields[i]].between(min_val, max_val)]
+                if i == 0:
+                    print("키 필터", min_val, max_val)
+                    print(filtered)
+                else:
+                    print("나이 필터", min_val, max_val)
+                    print(filtered)
             except:
                 pass
         else:
